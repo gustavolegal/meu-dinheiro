@@ -8,6 +8,8 @@ Controle de gastos por **ciclo** — o ciclo começa no dia em que o salário ca
 
 ## 1. Baixar e rodar no seu computador
 
+> É assim que o app é feito pra ser usado: você baixa a pasta, roda no seu PC e os dados ficam no seu banco `gastos.db`. O link de demonstração lá no fim é só pra dar uma espiada rápida.
+
 A única coisa que precisa estar instalada é o **[Node.js](https://nodejs.org)** (baixe o instalador "LTS", next-next-finish).
 
 **Passo a passo:**
