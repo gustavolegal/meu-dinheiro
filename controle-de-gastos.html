@@ -1433,6 +1433,52 @@
         color: var(--ink);
         box-shadow: var(--shadow);
       }
+      /* Calculadora de repasse (pix): marca as contas e vê o total na hora. */
+      .rep {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .rep .repc {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 13px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--card-2);
+        color: var(--mut);
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      .rep .repc b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .rep .repc.on {
+        background: var(--primary);
+        border-color: transparent;
+        color: var(--primary-ink);
+      }
+      .rep .repc.on b {
+        color: var(--primary-ink);
+      }
+      .rep-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      .rep-foot b {
+        font-size: 1.35rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .rep-foot button {
+        margin-left: auto;
+      }
 
       /* ---- metas ---- */
       .goal-create {
@@ -3934,7 +3980,22 @@
         </section>
       </div>
 
+      <section class="card" data-tab="gastos">
+        <h2>Quanto mandar (pix)</h2>
+        <p class="sub">
+          Marque o que entra no repasse deste ciclo — as contas e o que falta de
+          cada dívida. O total sai na hora, pra você não errar a conta.
+        </p>
+        <div class="rep" id="rep" role="group" aria-label="Itens do repasse"></div>
+        <div class="rep-foot">
+          <span class="sub">Total do repasse</span>
+          <b id="reptot">R$ 0,00</b>
+          <button type="button" id="repcopy">Copiar detalhe</button>
+        </div>
+      </section>
+
       <div class="cols" data-tab="metas" data-grp="metas">
+
         <section class="card on" data-sub="goal">
           <h2>Metas</h2>
           <p class="sub">
@@ -4348,6 +4409,16 @@
             .reduce(function (a, i) {
               return a + i.v;
             }, 0);
+        }
+        /* Soma o que está marcado no repasse (contas + dívidas). */
+        function repTot() {
+          var t = 0;
+          document.querySelectorAll("#rep .repc.on").forEach(function (b) {
+            t += parseFloat(b.dataset.v) || 0;
+          });
+          var el = $("reptot");
+          if (el) el.textContent = brl(t);
+          return t;
         }
         function render() {
           if (!S.debts) S.debts = [];
@@ -4774,6 +4845,43 @@
             });
           }
           $("stats").innerHTML = st;
+          /* Calculadora de repasse: marca o que entra no pix deste ciclo. */
+          var repEl = $("rep");
+          if (repEl) {
+            var repOn = m.rep || [],
+              repChip = function (k, nome, val) {
+                var on = repOn.indexOf(k) >= 0;
+                return (
+                  '<button type="button" class="repc' +
+                  (on ? " on" : "") +
+                  '" data-k="' +
+                  k +
+                  '" data-v="' +
+                  val +
+                  '" aria-pressed="' +
+                  on +
+                  '">' +
+                  esc(nome) +
+                  " <b>" +
+                  brl(val) +
+                  "</b></button>"
+                );
+              },
+              repChips = [];
+            m.items.forEach(function (i) {
+              if (i.t === "fixed" || i.t === "var")
+                repChips.push(repChip("i:" + i.id, i.n, i.v));
+            });
+            (S.debts || []).forEach(function (d) {
+              var falta = d.total - d.paid;
+              if (falta > 0.005)
+                repChips.push(repChip("d:" + d.id, d.name + " (falta)", falta));
+            });
+            repEl.innerHTML = repChips.length
+              ? repChips.join("")
+              : '<p class="empty">Nada pra repassar neste ciclo.</p>';
+            repTot();
+          }
           ["fixed", "var"].forEach(function (t) {
             var items = m.items.filter(function (i) {
                 return i.t === t;
@@ -5610,6 +5718,22 @@
           save();
           render();
         });
+        /* Calculadora de repasse: marca/desmarca e atualiza o total na hora. */
+        document.addEventListener("click", function (e) {
+          var b = e.target.closest("#rep .repc");
+          if (!b) return;
+          var m = month(),
+            sel = m.rep || (m.rep = []),
+            k = b.dataset.k,
+            i = sel.indexOf(k),
+            on = i < 0;
+          if (on) sel.push(k);
+          else sel.splice(i, 1);
+          b.classList.toggle("on", on);
+          b.setAttribute("aria-pressed", on);
+          save();
+          repTot();
+        });
         document.addEventListener("click", function (e) {
           var b = e.target.closest(".ed,.cn,.re");
           if (!b) return;
@@ -5915,6 +6039,28 @@
           };
           r.readAsText(f);
           this.value = "";
+        };
+        /* Copia o detalhe do repasse (pra colar na conversa do pix). */
+        $("repcopy").onclick = function () {
+          var btn = this,
+            partes = [];
+          document.querySelectorAll("#rep .repc.on").forEach(function (b) {
+            partes.push(b.textContent.replace(/\s+/g, " ").trim());
+          });
+          if (!partes.length)
+            return status("Marque o que entra no repasse primeiro.");
+          var txt = partes.join(" + ") + " = " + brl(repTot()),
+            ok = function () {
+              btn.textContent = "Copiado ✓";
+              setTimeout(function () {
+                btn.textContent = "Copiar detalhe";
+              }, 1600);
+            };
+          if (navigator.clipboard && navigator.clipboard.writeText)
+            navigator.clipboard.writeText(txt).then(ok, function () {
+              status("Não deu pra copiar: " + txt);
+            });
+          else status(txt);
         };
         $("pdbtn").onclick = function () {
           var v = parseInt($("pday").value, 10);

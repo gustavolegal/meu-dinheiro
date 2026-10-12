@@ -87,6 +87,10 @@ Em cada item da lista:
 - **Cancelar** → só em Fixos: para de repetir nos próximos ciclos;
 - **✕** → remover.
 
+Abaixo das listas tem a **calculadora de repasse** — *Quanto mandar (pix)*: clique nas
+contas e no que falta de cada dívida pra ver o total na hora e **Copiar detalhe**
+pra colar na conversa. Serve pra não errar a conta na hora de mandar o dinheiro.
+
 ### Passo 3 — Metas
 
 1. **Criar meta** → nome, valor alvo e *Guardar por mês*.
@@ -98,9 +102,10 @@ Em cada item da lista:
 É a leitura do ciclo:
 
 - **Sobra prevista** (número grande) = renda − fixos − variáveis − metas − dívidas. Ele **já desconta contas que ainda não foram pagas**;
-- **Em caixa agora** = renda − o que já saiu. É o número que mais se parece com o extrato do banco;
+- **Em caixa agora** = o que sobrou do ciclo anterior + renda − o que já saiu. É o número que mais se parece com o extrato do banco;
 - **Ainda a pagar** = contas fixas + variáveis que faltam;
 - **Posso gastar por dia** = a sobra dividida pelos dias que restam no ciclo;
+- **Fechamento do ciclo** (no topo do Resumo) = você escreve com quanto o ciclo realmente terminou (o saldo do banco). O app mostra a diferença pro que ele previa, e esse valor passa a ser o saldo inicial do próximo ciclo sozinho;
 - a **barra colorida** mostra para onde a renda foi; passe o mouse (ou use Tab) em cada trecho para ver o valor;
 - por baixo, as **Recomendações** (referências gerais, tipo a regra 50/30/20 — não é aconselhamento financeiro).
 
