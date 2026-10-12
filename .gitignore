@@ -1,0 +1,7 @@
+# nada de dado pessoal no repositório
+gastos.db
+*.db
+backups/
+meu-dinheiro-backup.json
+*.html.bak
+.opencode/
