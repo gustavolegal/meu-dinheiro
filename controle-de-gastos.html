@@ -803,6 +803,45 @@
       .daily.warn b {
         color: var(--bad);
       }
+      /* Fechamento do ciclo: quanto sobrou de verdade (vira saldo do próximo) */
+      .closebox {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid color-mix(in oklab, var(--primary) 26%, var(--line));
+        background: color-mix(
+          in oklab,
+          var(--primary) 9%,
+          color-mix(in srgb, var(--card-2) 76%, transparent)
+        );
+        -webkit-backdrop-filter: blur(10px) saturate(1.12);
+        backdrop-filter: blur(10px) saturate(1.12);
+        max-width: 420px;
+      }
+      .closebox:empty {
+        display: none;
+      }
+      .closebox-lb {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.72rem;
+        letter-spacing: 0.02em;
+        color: var(--mut);
+      }
+      .closebox input {
+        min-height: 42px;
+        padding: 9px 12px;
+      }
+      .closebox-tx {
+        margin: 8px 0 0;
+        font-size: 0.74rem;
+        line-height: 1.4;
+        color: var(--mut);
+        font-variant-numeric: tabular-nums;
+      }
+      .closebox-tx b {
+        color: var(--ink);
+      }
       .bar {
         position: relative;
         display: flex;
@@ -3677,6 +3716,7 @@
             <div class="big" id="left" aria-live="polite"></div>
             <div class="hero-real" id="real" aria-live="polite"></div>
             <div class="daily" id="daily" aria-live="polite"></div>
+            <div class="closebox" id="closebox"></div>
           </div>
           <div class="donut" id="donut" aria-hidden="true"></div>
         </div>
@@ -4191,6 +4231,10 @@
         function save() {
           var c = S.months[key(cur)];
           if (c) delete c.draft;
+          /* marca a hora da alteração: no load o app compara com a do banco e
+             deixa a mais nova vencer (evita o banco engolir o que foi salvo
+             enquanto o servidor estava fora / antes do PUT de 400 ms). */
+          S.savedAt = Date.now();
           local();
           if (srv) {
             status("Salvando…");
@@ -4198,6 +4242,25 @@
             timer = setTimeout(push, 400);
           }
         }
+        /* fechar/recarregar a página no meio dos 400 ms não pode perder a
+           alteração: despacha o PUT pendente com keepalive. */
+        function flush() {
+          if (!srv || !timer) return;
+          clearTimeout(timer);
+          timer = null;
+          try {
+            fetch("/api/dados", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(ser()),
+              keepalive: true,
+            });
+          } catch (e) {}
+        }
+        window.addEventListener("pagehide", flush);
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden") flush();
+        });
         function push() {
           fetch("/api/dados", {
             method: "PUT",
@@ -4257,6 +4320,9 @@
             if (p) {
               m.salary = S.months[p].salary;
               m.salaryAuto = true;
+              /* o que sobrou no fim do ciclo anterior entra como saldo inicial
+                 deste ciclo */
+              if (S.months[p].end != null) m.start = S.months[p].end;
               S.months[p].items.forEach(function (i) {
                 if (i.t === "fixed" && !i.stop)
                   m.items.push({
@@ -4327,7 +4393,8 @@
               .reduce(function (a, b) {
                 return a + b.v;
               }, 0),
-            realLeft = ic - paidFix - mt - dv,
+            startBal = Number(m.start) || 0,
+            realLeft = startBal + ic - paidFix - mt - dv,
             falta = Math.max(0, fx + vr - paidFix);
           var paidOf = function (t) {
             return m.items
@@ -4594,7 +4661,11 @@
               (realLeft < 0 ? ' class="neg"' : "") +
               ">" +
               brl(realLeft) +
-              "</b><em>renda − o que já saiu</em></div>" +
+              "</b><em>" +
+              (startBal
+                ? brl(startBal) + " do ciclo anterior + renda − o que já saiu"
+                : "renda − o que já saiu") +
+              "</em></div>" +
               '<span class="flow-op" aria-hidden="true">−</span>' +
               '<div class="flow-card due' +
               (falta > 0 ? "" : " is-clear") +
@@ -4651,6 +4722,56 @@
               (_dl === 1 ? " dia" : " dias") +
               (_neg ? " · sobra negativa" : "") +
               "</span>";
+          }
+          /* Fechamento do ciclo: registra com quanto sobrou de verdade. O valor
+             vira saldo inicial do próximo ciclo (m.start). */
+          var cb = $("closebox");
+          if (cb) {
+            var endv = m.end == null || m.end === "" ? null : Number(m.end),
+              diff = endv == null ? 0 : endv - realLeft;
+            cb.innerHTML =
+              '<form id="cform">' +
+              '<label class="closebox-lb" for="cval">' +
+              (endv == null ? "Quanto sobrou no fim do ciclo?" : "Fechamento do ciclo") +
+              "</label>" +
+              '<div class="control-row">' +
+              '<input id="cval" name="cval" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"' +
+              (endv == null ? "" : ' value="' + endv + '"') +
+              " />" +
+              '<button class="p" type="submit">' +
+              (endv == null ? "Registrar" : "Atualizar") +
+              "</button></div>" +
+              '<p class="closebox-tx">' +
+              (endv == null
+                ? "Vira o saldo inicial do próximo ciclo. Hoje o app acha que você tem <b>" +
+                  brl(realLeft) +
+                  "</b>."
+                : "Fechou com <b>" +
+                  brl(endv) +
+                  "</b> · o app previa " +
+                  brl(realLeft) +
+                  " · " +
+                  (diff === 0
+                    ? "bateu certinho ✓"
+                    : diff > 0
+                      ? "sobrou <b>" +
+                        brl(diff) +
+                        "</b> a mais — vê se falta lançar algum gasto"
+                      : "faltou <b>" +
+                        brl(-diff) +
+                        "</b> do previsto")) +
+              "</p></form>";
+            $("cform").addEventListener("submit", function (e) {
+              e.preventDefault();
+              var v = parseFloat(String($("cval").value).replace(",", "."));
+              if (!isFinite(v) || v < 0) return;
+              m.end = Math.round(v * 100) / 100;
+              var nk = key(new Date(cur.getFullYear(), cur.getMonth() + 1, 1));
+              if (S.months[nk] && S.months[nk].start == null)
+                S.months[nk].start = m.end;
+              save();
+              render();
+            });
           }
           $("stats").innerHTML = st;
           ["fixed", "var"].forEach(function (t) {
@@ -6802,13 +6923,25 @@
           .then(function (d) {
             srv = true;
             if (d && d.months) {
-              S = d;
-              if (!S.goals) S.goals = [];
-              migrate();
-              local();
-              restoreCur();
-              status("Banco de dados local conectado ✓");
-              render();
+              /* Se o que está no navegador é mais novo que o banco (ex.: você
+                 lançou algo enquanto o servidor estava fora), manda o local
+                 para o banco em vez de deixar o banco apagar em cima. */
+              if (Number(S.savedAt || 0) > Number(d.savedAt || 0)) {
+                migrate();
+                local();
+                restoreCur();
+                status("Alterações locais enviadas para o banco de dados ✓");
+                push();
+                render();
+              } else {
+                S = d;
+                if (!S.goals) S.goals = [];
+                migrate();
+                local();
+                restoreCur();
+                status("Banco de dados local conectado ✓");
+                render();
+              }
             } else {
               status("Banco de dados local conectado ✓");
               push();
