@@ -2,19 +2,55 @@
 
 Controle de gastos por **ciclo** — o ciclo começa no dia em que o salário cai e termina no dia anterior ao próximo pagamento.
 
-É um arquivo HTML só: sem cadastro, sem instalação, sem nuvem. Tudo fica na sua máquina.
-
-**Testar agora:** https://gustavolegal.github.io/meu-dinheiro/controle-de-gastos.html
+É um arquivo HTML só: sem cadastro, sem nuvem, sem instalar biblioteca nenhuma. Roda no seu computador e os dados ficam num banco **SQLite** na sua própria pasta.
 
 ---
 
-## 1. Testar sem instalar nada (só o navegador)
+## 1. Baixar e rodar no seu computador
 
-1. Abra o link acima.
-2. Vai aparecer a mensagem *"Modo navegador: dados só neste navegador"* — é o esperado. Seus lançamentos ficam salvos no **próprio navegador** (localStorage).
-3. Comece pela aba **Renda** e siga o passo a passo abaixo.
+A única coisa que precisa estar instalada é o **[Node.js](https://nodejs.org)** (baixe o instalador "LTS", next-next-finish).
 
-> Nesse modo cada pessoa tem os próprios dados, e se você limpar os dados do navegador eles vão embora. Para guardar de verdade: **Mais → Histórico → Baixar backup**.
+**Passo a passo:**
+
+1. Baixe o projeto: botão verde **Code → Download ZIP** — ou, se preferir terminal:
+   ```bash
+   git clone https://github.com/gustavolegal/meu-dinheiro.git
+   ```
+2. Extraia a pasta (se baixou o ZIP).
+3. **Windows:** clique duas vezes em **`rodar.bat`**. Ele confere se o Node está instalado, liga o servidor e abre o navegador sozinho.
+   **Mac/Linux:** no terminal, dentro da pasta: `node server.js`
+4. Vai abrir em **http://localhost:8000** — comece pela aba **Renda**.
+
+Pronto. A partir daí:
+
+- tudo que você lançar é salvo em **`gastos.db`** (banco SQLite) na própria pasta;
+- o servidor faz **backup diário automático** do banco em `backups/`;
+- pode fechar à vontade: na próxima vez, rode o `rodar.bat` de novo e seus dados estão lá.
+
+### Abrir no celular (mesmo Wi-Fi)
+
+No terminal, dentro da pasta:
+
+```bash
+node server.js --rede
+```
+
+Ele mostra um endereço tipo `http://192.168.0.10:8000` — abra esse endereço no navegador do celular. O `rodar.bat` também aceita esse modo: `rodar.bat --rede`.
+
+> Nesse modo, qualquer aparelho no seu Wi-Fi consegue abrir o app. Use só em casa ou num Wi-Fi seu.
+
+### Trocar a porta
+
+```bash
+PORTA=9000 node server.js     # Mac/Linux
+set PORTA=9000 && node server.js   # Windows (cmd)
+```
+
+### Só quer espiar, sem instalar nada?
+
+<https://gustavolegal.github.io/meu-dinheiro/controle-de-gastos.html>
+
+Nesse modo o app entra em **"Modo navegador"**: os dados ficam no próprio navegador (localStorage) e não viram banco. Serve pra olhar como fica; pra usar de verdade, rode local (item 1).
 
 ---
 
@@ -79,56 +115,22 @@ No topo, `‹` vai para o ciclo anterior, `›` para o próximo e **Hoje** volta
 
 ---
 
-## 3. Rodar no seu computador (com banco de dados de verdade)
-
-Assim os dados ficam num arquivo **SQLite** (`gastos.db`) e não se perdem ao limpar o navegador.
-
-**Precisa:** [Node.js 22.13 ou mais novo](https://nodejs.org) (não instala nenhuma biblioteca — usa só o que vem no Node).
-
-```bash
-# 1. baixe o repositório (Code → Download ZIP) ou clone:
-git clone https://github.com/gustavolegal/meu-dinheiro.git
-cd meu-dinheiro
-
-# 2. rode:
-node server.js
-```
-
-Depois abra **http://localhost:8000**.
-
-- Salva tudo em `gastos.db`, na mesma pasta.
-- Faz **backup diário automático** do banco em `backups/`.
-- Trocar a porta: `PORTA=9000 node server.js`.
-
-### Abrir no celular (mesmo Wi-Fi)
-
-```bash
-node server.js --rede
-```
-
-Ele imprime um endereço tipo `http://192.168.0.10:8000` — abra esse endereço no navegador do celular.
-
-> Nesse modo qualquer pessoa no seu Wi-Fi consegue abrir o app. Use só em casa.
-
----
-
-## 4. Onde ficam os dados
+## 3. Onde ficam os dados
 
 | como você abriu | onde fica salvo |
 |---|---|
-| pelo link do GitHub Pages | no navegador (localStorage) |
-| por `node server.js` | `gastos.db` (SQLite) |
+| `rodar.bat` / `node server.js` | `gastos.db` (SQLite) na pasta do projeto |
+| link do GitHub Pages | no navegador (localStorage) |
 
-Os `.db` e os backups **não** estão no repositório — cada pessoa cria os seus.
+Os `.db` e os backups **não** estão no repositório — cada pessoa cria os seus. Nada de dado pessoal sobe pro Git: `gastos.db`, `*.db`, `backups/`, `*.html.bak` e `meu-dinheiro-backup.json` estão no `.gitignore`.
 
 ---
 
-## 5. Arquivos do repositório
+## 4. Arquivos do repositório
 
 ```
 controle-de-gastos.html   o app inteiro (HTML + CSS + JS num arquivo só)
-server.js                 servidor local (Node, sem dependências)
+server.js                 servidor local (Node, sem dependências) — node server.js
+rodar.bat                 atalho do Windows: liga o servidor e abre o navegador
 .gitignore                mantém banco, backups e dados pessoais fora do Git
 ```
-
-Nada de dado pessoal sobe para o Git: `gastos.db`, `*.db`, `backups/`, `*.html.bak` e `meu-dinheiro-backup.json` estão no `.gitignore`.
