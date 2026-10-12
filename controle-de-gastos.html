@@ -821,20 +821,9 @@
       .closebox:empty {
         display: none;
       }
-      .closebox-lb {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 0.72rem;
-        letter-spacing: 0.02em;
-        color: var(--mut);
-      }
-      .closebox input {
-        min-height: 42px;
-        padding: 9px 12px;
-      }
       .closebox-tx {
-        margin: 8px 0 0;
-        font-size: 0.74rem;
+        margin: 0;
+        font-size: 0.8rem;
         line-height: 1.4;
         color: var(--mut);
         font-variant-numeric: tabular-nums;
@@ -1314,7 +1303,19 @@
         overflow: hidden;
       }
       .expense-list li {
+        /* deixa a linha quebrar em duas quando não couber (celular / tela
+           estreita) em vez de empurrar a página pra fora da tela */
+        flex-wrap: wrap;
+        row-gap: 8px;
         padding: 12px 15px;
+      }
+      .expense-list li > span:first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .expense-list li > .r {
+        margin-left: auto;
       }
 
       /* ---- listas ---- */
@@ -1435,37 +1436,75 @@
       }
       /* Calculadora de repasse (pix): marca as contas e vê o total na hora. */
       .rep {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
         margin-top: 14px;
       }
-      .rep .repc {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 8px 13px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: var(--card-2);
+      .rep-g {
+        margin: 14px 0 6px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
         color: var(--mut);
-        font-weight: 500;
-        line-height: 1.2;
       }
-      .rep .repc b {
+      .rep-g:first-child {
+        margin-top: 2px;
+      }
+      .rep-lista {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 6px;
+      }
+      .rep-i {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 44px;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: var(--card-2);
+        cursor: pointer;
+        transition:
+          border-color 0.16s ease,
+          background 0.16s ease;
+      }
+      .rep-i:hover {
+        border-color: color-mix(in oklab, var(--primary) 38%, var(--line));
+      }
+      .rep-i input {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: var(--primary);
+        cursor: pointer;
+      }
+      .rep-i span {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         color: var(--ink);
+      }
+      .rep-i b {
+        color: var(--mut);
         font-variant-numeric: tabular-nums;
       }
-      .rep .repc.on {
-        background: var(--primary);
-        border-color: transparent;
-        color: var(--primary-ink);
+      .rep-i:has(input:checked) {
+        border-color: color-mix(in oklab, var(--primary) 60%, var(--line));
+        background: color-mix(in oklab, var(--primary) 12%, var(--card-2));
       }
-      .rep .repc.on b {
-        color: var(--primary-ink);
+      .rep-i:has(input:checked) b {
+        color: var(--ink);
+      }
+      .rep-i:has(input:focus-visible) {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
       }
       .rep-foot {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 10px;
         margin-top: 14px;
@@ -1476,8 +1515,15 @@
         font-size: 1.35rem;
         font-variant-numeric: tabular-nums;
       }
-      .rep-foot button {
+      .rep-acoes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
         margin-left: auto;
+      }
+      .rep-acoes button {
+        font-size: 0.86rem;
+        padding: 8px 12px;
       }
 
       /* ---- metas ---- */
@@ -2076,6 +2122,21 @@
         .donut {
           width: 120px;
           height: 120px;
+        }
+      }
+      @media (max-width: 480px) {
+        /* o nome da conta fica na linha de cima e o valor + botões embaixo:
+           sem isso a linha empurra a página pra fora da tela no celular */
+        .expense-list li {
+          flex-wrap: wrap;
+          row-gap: 8px;
+        }
+        .expense-list li > span:first-child {
+          flex: 1 1 100%;
+          min-width: 0;
+        }
+        .expense-list li > .r {
+          margin-left: auto;
         }
       }
       @media (max-width: 440px) {
@@ -3983,14 +4044,18 @@
       <section class="card" data-tab="gastos">
         <h2>Quanto mandar (pix)</h2>
         <p class="sub">
-          Marque o que entra no repasse deste ciclo — as contas e o que falta de
-          cada dívida. O total sai na hora, pra você não errar a conta.
+          Marque o que entra no repasse deste ciclo — as contas e a parcela das
+          dívidas. O total sai na hora, pra você não errar a conta.
         </p>
         <div class="rep" id="rep" role="group" aria-label="Itens do repasse"></div>
         <div class="rep-foot">
           <span class="sub">Total do repasse</span>
           <b id="reptot">R$ 0,00</b>
-          <button type="button" id="repcopy">Copiar detalhe</button>
+          <span class="rep-acoes">
+            <button type="button" id="repall">Marcar tudo</button>
+            <button type="button" id="repnone">Limpar</button>
+            <button class="p" type="button" id="repcopy">Copiar detalhe</button>
+          </span>
         </div>
       </section>
 
@@ -4036,6 +4101,37 @@
           <div id="gmonth"></div>
         </section>
       </div>
+
+      <section class="card" data-tab="metas">
+        <h2>Investimentos</h2>
+        <p class="sub">
+          Dinheiro que sai da conta mas continua sendo seu (bitcoin, CDB,
+          poupança…). Os aportes entram no “guardado” do ciclo, então a sobra e o
+          caixa já contam com eles.
+        </p>
+        <details class="goal-create">
+          <summary>Novo investimento</summary>
+          <form id="ivform" class="goal-create-form">
+            <label
+              >Nome<input
+                type="text"
+                placeholder="Ex.: bitcoin"
+                aria-label="Nome do investimento"
+                required
+            /></label>
+            <label
+              >Aporte por ciclo<input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="R$ (opcional)"
+                aria-label="Aporte por ciclo (opcional)"
+            /></label>
+            <button class="p" type="submit">Salvar investimento</button>
+          </form>
+        </details>
+        <div id="invests"></div>
+      </section>
 
       <section class="card" data-tab="resumo">
         <h2>Recomendações</h2>
@@ -4133,6 +4229,7 @@
         } catch (e) {}
         if (!S.months) S.months = {};
         if (!S.goals) S.goals = [];
+        if (!S.invests) S.invests = [];
         migrate();
         S.goals = S.goals.filter(function (g, i, list) {
           return (
@@ -4265,6 +4362,10 @@
         }
         restoreCur();
         var srv = false,
+          /* só depois que o estado carregou (banco ou navegador) é que o
+             fechamento do ciclo pode gravar — antes disso o estado ainda está
+             vazio e um save() aqui apagaria o banco. */
+          ready = false,
           timer = null;
         function status(t) {
           var e = document.getElementById("sync");
@@ -4410,11 +4511,11 @@
               return a + i.v;
             }, 0);
         }
-        /* Soma o que está marcado no repasse (contas + dívidas). */
+        /* Soma o que está marcado no repasse (contas + parcelas de dívida). */
         function repTot() {
           var t = 0;
-          document.querySelectorAll("#rep .repc.on").forEach(function (b) {
-            t += parseFloat(b.dataset.v) || 0;
+          document.querySelectorAll("#rep input:checked").forEach(function (c) {
+            t += parseFloat(c.dataset.v) || 0;
           });
           var el = $("reptot");
           if (el) el.textContent = brl(t);
@@ -4422,6 +4523,7 @@
         }
         function render() {
           if (!S.debts) S.debts = [];
+          if (!S.invests) S.invests = [];
           var m = month(),
             k = key(cur);
           try {
@@ -4438,22 +4540,28 @@
           $("pday").value = pd();
           var fx = sum(m, "fixed"),
             vr = sum(m, "var"),
-            mt = sum(m, "meta"),
+            /* Metas + investimentos formam o mesmo "guardado": dinheiro que
+               saiu da conta mas continua sendo seu. */
+            mt = sum(m, "meta") + sum(m, "inv"),
             dv = sum(m, "div"),
             ic = inc(m),
             ex = ic - m.salary,
             /* Metas entram no previsto: soma o "guardar por mês" das metas
                ativas, limitado ao que ainda falta. A sobra prevista reserva
                esse plano em vez de ignorá-lo até você guardar de fato. */
-            mtPlan = (S.goals || []).reduce(function (a, g) {
-              var rem = Math.max(
-                0,
-                (Number(g.target) || 0) - (Number(g.saved) || 0),
-              );
-              if (g.completed || rem <= 0) return a;
-              var mo = Number(g.monthly) || 0;
-              return a + (mo > 0 ? Math.min(mo, rem) : 0);
-            }, 0),
+            mtPlan =
+              (S.goals || []).reduce(function (a, g) {
+                var rem = Math.max(
+                  0,
+                  (Number(g.target) || 0) - (Number(g.saved) || 0),
+                );
+                if (g.completed || rem <= 0) return a;
+                var mo = Number(g.monthly) || 0;
+                return a + (mo > 0 ? Math.min(mo, rem) : 0);
+              }, 0) +
+              (S.invests || []).reduce(function (a, x) {
+                return a + Math.max(0, Number(x.monthly) || 0);
+              }, 0),
             mtForecast = Math.max(mt, mtPlan),
             metaDue = Math.max(0, mtForecast - mt),
             left = ic - fx - vr - mtForecast - dv;
@@ -4507,7 +4615,7 @@
           barEl.innerHTML =
             barSeg("Fixos", "fix", fx, opOf("fixed", fx)) +
             barSeg("Variáveis", "var", vr, opOf("var", vr)) +
-            (mtForecast > 0 ? barSeg("Metas", "meta", mtForecast) : "") +
+            (mtForecast > 0 ? barSeg("Guardado", "meta", mtForecast) : "") +
             (dv > 0 ? barSeg("Dívidas", "bad", dv) : "") +
             (left > 0 ? barSeg("Sobra", "ok", left) : "");
           /* A barra é remontada a cada render: repetir o "crescer" a cada
@@ -4591,7 +4699,7 @@
                 "linear-gradient(90deg,var(--fix),var(--var))",
               ),
               eqOp("−"),
-              eqChip("Metas", mtForecast, "var(--meta)"),
+              eqChip("Guardado", mtForecast, "var(--meta)"),
             ];
             if (dv > 0) {
               eqParts.push(eqOp("−"));
@@ -4606,7 +4714,7 @@
                 brl(ic) +
                 " menos gastos " +
                 brl(fx + vr) +
-                " menos metas " +
+                " menos guardado " +
                 brl(mtForecast) +
                 (dv > 0 ? " menos dívidas " + brl(dv) : "") +
                 " igual a sobra " +
@@ -4631,7 +4739,7 @@
               : "") +
             "<div><span>Gastos (fixos + variáveis)</span><b>" +
             brl(fx + vr) +
-            "</b></div><div><span>Guardado nas metas</span><b>" +
+            "</b></div><div><span>Guardado (metas + investimentos)</span><b>" +
             brl(mt) +
             "</b></div>";
           [
@@ -4685,6 +4793,7 @@
                   sum(mm, "fixed") -
                   sum(mm, "var") -
                   sum(mm, "meta") -
+                  sum(mm, "inv") -
                   sum(mm, "div");
               }
             });
@@ -4794,92 +4903,97 @@
               (_neg ? " · sobra negativa" : "") +
               "</span>";
           }
-          /* Fechamento do ciclo: registra com quanto sobrou de verdade. O valor
-             vira saldo inicial do próximo ciclo (m.start). */
-          var cb = $("closebox");
-          if (cb) {
-            var endv = m.end == null || m.end === "" ? null : Number(m.end),
-              diff = endv == null ? 0 : endv - realLeft;
-            cb.innerHTML =
-              '<form id="cform">' +
-              '<label class="closebox-lb" for="cval">' +
-              (endv == null ? "Quanto sobrou no fim do ciclo?" : "Fechamento do ciclo") +
-              "</label>" +
-              '<div class="control-row">' +
-              '<input id="cval" name="cval" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"' +
-              (endv == null ? "" : ' value="' + endv + '"') +
-              " />" +
-              '<button class="p" type="submit">' +
-              (endv == null ? "Registrar" : "Atualizar") +
-              "</button></div>" +
-              '<p class="closebox-tx">' +
-              (endv == null
-                ? "Vira o saldo inicial do próximo ciclo. Hoje o app acha que você tem <b>" +
-                  brl(realLeft) +
-                  "</b>."
-                : "Fechou com <b>" +
-                  brl(endv) +
-                  "</b> · o app previa " +
-                  brl(realLeft) +
-                  " · " +
-                  (diff === 0
-                    ? "bateu certinho ✓"
-                    : diff > 0
-                      ? "sobrou <b>" +
-                        brl(diff) +
-                        "</b> a mais — vê se falta lançar algum gasto"
-                      : "faltou <b>" +
-                        brl(-diff) +
-                        "</b> do previsto")) +
-              "</p></form>";
-            $("cform").addEventListener("submit", function (e) {
-              e.preventDefault();
-              var v = parseFloat(String($("cval").value).replace(",", "."));
-              if (!isFinite(v) || v < 0) return;
-              m.end = Math.round(v * 100) / 100;
-              var nk = key(new Date(cur.getFullYear(), cur.getMonth() + 1, 1));
-              if (S.months[nk] && S.months[nk].start == null)
-                S.months[nk].start = m.end;
-              save();
-              render();
-            });
+          /* Fechamento do ciclo: automático, sem botão. O app fecha com o que
+             ele mesmo calculou e joga isso como saldo inicial do próximo ciclo,
+             se mantendo em dia: mudou algo aqui, os seguintes vêm junto. */
+          var fecho = Math.round(realLeft * 100) / 100,
+            nk = key(new Date(cur.getFullYear(), cur.getMonth() + 1, 1)),
+            nm = S.months[nk],
+            endAntes = m.end,
+            mexeu = false;
+          if (ready && k <= key(new Date())) {
+            if (Number(m.end) !== fecho) {
+              m.end = fecho;
+              mexeu = true;
+            }
+            /* só mexe no saldo do próximo se ele veio daqui (não é um valor
+               que você ajustou na mão) */
+            if (
+              nm &&
+              (nm.startAuto ||
+                nm.start == null ||
+                (endAntes != null && Number(nm.start) === Number(endAntes))) &&
+              Number(nm.start) !== fecho
+            ) {
+              nm.start = fecho;
+              nm.startAuto = true;
+              mexeu = true;
+            }
           }
+          var cb = $("closebox");
+          if (cb)
+            cb.innerHTML =
+              '<p class="closebox-tx">Fechamento deste ciclo: <b>' +
+              brl(fecho) +
+              "</b> — vira o saldo inicial de " +
+              new Date(cur.getFullYear(), cur.getMonth() + 1, 1)
+                .toLocaleDateString("pt-BR", { month: "long" })
+                .replace(/\./g, "") +
+              " sozinho.</p>";
+          if (mexeu) save();
           $("stats").innerHTML = st;
           /* Calculadora de repasse: marca o que entra no pix deste ciclo. */
           var repEl = $("rep");
           if (repEl) {
             var repOn = m.rep || [],
-              repChip = function (k, nome, val) {
-                var on = repOn.indexOf(k) >= 0;
+              repRow = function (k, nome, val) {
                 return (
-                  '<button type="button" class="repc' +
-                  (on ? " on" : "") +
-                  '" data-k="' +
+                  '<label class="rep-i" title="' +
+                  esc(nome) +
+                  '"><input type="checkbox" data-k="' +
                   k +
                   '" data-v="' +
                   val +
-                  '" aria-pressed="' +
-                  on +
-                  '">' +
+                  '"' +
+                  (repOn.indexOf(k) >= 0 ? " checked" : "") +
+                  " /><span>" +
                   esc(nome) +
-                  " <b>" +
+                  "</span><b>" +
                   brl(val) +
-                  "</b></button>"
+                  "</b></label>"
                 );
               },
-              repChips = [];
+              repGrupo = function (titulo, linhas) {
+                return linhas.length
+                  ? '<p class="rep-g">' +
+                      titulo +
+                      '</p><div class="rep-lista">' +
+                      linhas.join("") +
+                      "</div>"
+                  : "";
+              },
+              repContas = [],
+              repParcelas = [];
             m.items.forEach(function (i) {
               if (i.t === "fixed" || i.t === "var")
-                repChips.push(repChip("i:" + i.id, i.n, i.v));
+                repContas.push(repRow("i:" + i.id, i.n, i.v));
             });
             (S.debts || []).forEach(function (d) {
-              var falta = d.total - d.paid;
+              var falta = Math.max(
+                  0,
+                  (Number(d.total) || 0) - (Number(d.paid) || 0),
+                ),
+                parcela =
+                  Number(d.monthly) > 0
+                    ? Math.min(Number(d.monthly), falta)
+                    : falta;
               if (falta > 0.005)
-                repChips.push(repChip("d:" + d.id, d.name + " (falta)", falta));
+                repParcelas.push(repRow("d:" + d.id, d.name + " (parcela)", parcela));
             });
-            repEl.innerHTML = repChips.length
-              ? repChips.join("")
-              : '<p class="empty">Nada pra repassar neste ciclo.</p>';
+            repEl.innerHTML =
+              repGrupo("Contas do ciclo", repContas) +
+                repGrupo("Dívidas a pagar", repParcelas) ||
+              '<p class="empty">Nada pra repassar neste ciclo.</p>';
             repTot();
           }
           ["fixed", "var"].forEach(function (t) {
@@ -4977,10 +5091,11 @@
               "</ul>"
             : "";
           goals(left);
+          invests();
           debts();
           metaHistory();
           var gi = m.items.filter(function (i) {
-            return i.t === "meta";
+            return i.t === "meta" || i.t === "inv";
           });
           $("gmonth").innerHTML = gi.length
             ? '<div class="sub" style="margin-top:12px">Guardado neste ciclo (já descontado do salário)</div><ul>' +
@@ -5207,6 +5322,72 @@
                 ? '<p class="empty">Nenhuma meta encontrada. Ajuste a busca ou o filtro.</p>'
                 : '<p class="empty">Você ainda não criou metas. Use “Criar meta” para adicionar a primeira.</p>');
         }
+        /* Investimentos: dinheiro que sai da conta mas continua sendo seu.
+           Cada aporte é um item t:"inv" do ciclo e entra no mesmo "guardado"
+           das metas, então a sobra e o caixa seguem certos sem conta extra. */
+        function invests() {
+          var el = $("invests");
+          if (!el) return;
+          var m = month(),
+            cur = {};
+          (m.items || []).forEach(function (i) {
+            if (i.t === "inv")
+              cur[String(i.iid)] =
+                (cur[String(i.iid)] || 0) + (Number(i.v) || 0);
+          });
+          if (!S.invests.length) {
+            el.innerHTML =
+              '<p class="empty">Nenhum investimento ainda. Use “Novo investimento” pra registrar o primeiro (ex.: bitcoin).</p>';
+            return;
+          }
+          el.innerHTML = S.invests
+            .map(function (x) {
+              var contrib = Math.round((cur[String(x.id)] || 0) * 100) / 100,
+                total = Math.round((Number(x.invested) || 0) * 100) / 100,
+                ciclo =
+                  Math.abs(contrib) < 0.005
+                    ? "<b>Nenhum aporte neste ciclo ainda</b>"
+                    : contrib > 0
+                      ? "<b>✓ " +
+                        brl(contrib) +
+                        ' neste ciclo</b><span class="sub">Já descontado do salário</span>'
+                      : "<b>" +
+                        brl(contrib) +
+                        ' (resgate) neste ciclo</b><span class="sub">Voltou pra conta</span>';
+              return (
+                '<article class="goal"><div class="goal-head"><div class="goal-title"><b>' +
+                esc(x.name) +
+                '</b><span class="goal-status">' +
+                (total > 0 ? "Investindo" : "Zerado") +
+                "</span></div><strong>" +
+                brl(total) +
+                '</strong></div><div class="goal-meta"><span><b>' +
+                brl(total) +
+                '</b> investido</span><span class="sub">' +
+                (Number(x.monthly) > 0
+                  ? "Plano: " + brl(Number(x.monthly)) + "/ciclo"
+                  : "Sem aporte fixo") +
+                '</span></div><div class="goal-cycle' +
+                (contrib > 0 ? " paid" : "") +
+                '">' +
+                ciclo +
+                '</div><div class="goal-actions"><label class="goal-contribution"><span>Investir neste ciclo</span><span class="goal-contribution-controls"><input class="gv" type="number" autocomplete="off" min="0.01" step="0.01" value="' +
+                (Number(x.monthly) > 0 ? Number(x.monthly) : "") +
+                '" aria-label="Valor a investir em ' +
+                esc(x.name) +
+                '"><button class="p save" data-iv="add" data-id="' +
+                x.id +
+                '">Investir</button></span></label><details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
+                x.id +
+                '">Resgatar (tirar)</button><button data-iv="edit" data-id="' +
+                x.id +
+                '">Editar</button><button class="remove" data-iv="del" data-id="' +
+                x.id +
+                '">Remover investimento</button></div></details></div></article>'
+              );
+            })
+            .join("");
+        }
         function metaHistory() {
           var el = $("history-goals"),
             groups = {};
@@ -5398,7 +5579,7 @@
           } else {
             var pf = (fx / s) * 100,
               pv = (vr / s) * 100,
-              ps = ((left + sum(m, "meta")) / s) * 100,
+              ps = ((left + sum(m, "meta") + sum(m, "inv")) / s) * 100,
               goals = S.goals.map(function (g) {
                 return (
                   esc(g.name) +
@@ -5561,7 +5742,7 @@
             if (i.t === "inc") return;
             // Só entra o dinheiro que realmente saiu: pago (p), guardado (meta)
             // ou quitado (div). Fixos/variáveis pendentes ficam de fora.
-            var real = i.t === "meta" || i.t === "div" || i.p;
+            var real = i.t === "meta" || i.t === "inv" || i.t === "div" || i.p;
             if (!real) {
               pending += i.v;
               return;
@@ -5570,9 +5751,11 @@
               i.c ||
               (i.t === "meta"
                 ? "Metas"
-                : i.t === "div"
-                  ? "Dívidas"
-                  : "Outros");
+                : i.t === "inv"
+                  ? "Investimentos"
+                  : i.t === "div"
+                    ? "Dívidas"
+                    : "Outros");
             by[c] = (by[c] || 0) + i.v;
             tot += i.v;
           });
@@ -5680,7 +5863,9 @@
           if (!it) return;
           if (
             !confirm(
-              (it.t === "meta" || it.t === "div" ? "Desfazer " : "Remover ") +
+              (it.t === "meta" || it.t === "inv" || it.t === "div"
+                ? "Desfazer "
+                : "Remover ") +
                 (it.n || "este lançamento") +
                 " (" +
                 brl(it.v || 0) +
@@ -5693,6 +5878,14 @@
               return x.id === it.gid;
             });
             if (g) g.saved = Math.max(0, g.saved - it.v);
+          }
+          if (it.t === "inv") {
+            var iv = S.invests.find(function (x) {
+              return String(x.id) === String(it.iid);
+            });
+            if (iv)
+              iv.invested =
+                Math.round(((Number(iv.invested) || 0) - it.v) * 100) / 100;
           }
           if (it && it.t === "div") {
             var dd = S.debts.find(function (x) {
@@ -5719,18 +5912,15 @@
           render();
         });
         /* Calculadora de repasse: marca/desmarca e atualiza o total na hora. */
-        document.addEventListener("click", function (e) {
-          var b = e.target.closest("#rep .repc");
-          if (!b) return;
+        document.addEventListener("change", function (e) {
+          var c = e.target.closest("#rep input[type=checkbox]");
+          if (!c) return;
           var m = month(),
             sel = m.rep || (m.rep = []),
-            k = b.dataset.k,
-            i = sel.indexOf(k),
-            on = i < 0;
-          if (on) sel.push(k);
-          else sel.splice(i, 1);
-          b.classList.toggle("on", on);
-          b.setAttribute("aria-pressed", on);
+            k = c.dataset.k,
+            i = sel.indexOf(k);
+          if (c.checked && i < 0) sel.push(k);
+          else if (!c.checked && i >= 0) sel.splice(i, 1);
           save();
           repTot();
         });
@@ -5859,6 +6049,7 @@
                 sum(mm, "fixed") -
                 sum(mm, "var") -
                 sum(mm, "meta") -
+                sum(mm, "inv") -
                 sum(mm, "div");
             if (
               v > l &&
@@ -5967,6 +6158,7 @@
                 sum(mm, "fixed") -
                 sum(mm, "var") -
                 sum(mm, "meta") -
+                sum(mm, "inv") -
                 sum(mm, "div");
             if (
               v > l &&
@@ -6009,6 +6201,118 @@
           save();
           render();
         });
+        $("ivform").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var i = this.querySelectorAll("input"),
+            mo = parseFloat(i[1].value);
+          if (!i[0].value.trim()) return;
+          S.invests.push({
+            id: Date.now() + Math.random(),
+            name: i[0].value.trim(),
+            invested: 0,
+            monthly: mo > 0 ? mo : 0,
+          });
+          save();
+          this.reset();
+          render();
+        });
+        /* Investimentos: o aporte vira um item t:"inv" (entra no guardado) e o
+           resgate é o mesmo item com valor negativo (o dinheiro volta pra conta). */
+        document.addEventListener("click", function (e) {
+          var b = e.target.closest("[data-iv]");
+          if (!b) return;
+          var x = S.invests.find(function (y) {
+            return String(y.id) === b.dataset.id;
+          });
+          if (!x) return;
+          var acao = b.dataset.iv,
+            mm = month();
+          if (acao === "add") {
+            var inp = b.parentNode.querySelector(".gv"),
+              v = parseFloat(inp ? inp.value : "");
+            if (!(v > 0)) return;
+            v = Math.round(v * 100) / 100;
+            var l =
+              inc(mm) -
+              sum(mm, "fixed") -
+              sum(mm, "var") -
+              sum(mm, "meta") -
+              sum(mm, "inv") -
+              sum(mm, "div");
+            if (
+              v > l &&
+              !confirm(
+                "Isso deixa o ciclo no negativo (" +
+                  brl(l - v) +
+                  "). Investir mesmo assim?",
+              )
+            )
+              return;
+            mm.items.push({
+              id: Date.now() + Math.random(),
+              t: "inv",
+              iid: x.id,
+              n: x.name,
+              v: v,
+              c: "Investimentos",
+            });
+            x.invested =
+              Math.round(((Number(x.invested) || 0) + v) * 100) / 100;
+          } else if (acao === "out") {
+            var ov = parseFloat(
+              String(
+                prompt("Quanto você tirou de " + x.name + " (R$):", ""),
+              ).replace(",", "."),
+            );
+            if (!(ov > 0)) return;
+            ov = Math.round(ov * 100) / 100;
+            if (
+              ov > (Number(x.invested) || 0) &&
+              !confirm(
+                "Você tinha " +
+                  brl(Number(x.invested) || 0) +
+                  " investido. Registrar o resgate mesmo assim?",
+              )
+            )
+              return;
+            mm.items.push({
+              id: Date.now() + Math.random(),
+              t: "inv",
+              iid: x.id,
+              n: x.name + " (resgate)",
+              v: -ov,
+              c: "Investimentos",
+            });
+            x.invested =
+              Math.round(((Number(x.invested) || 0) - ov) * 100) / 100;
+          } else if (acao === "del") {
+            if (
+              !confirm(
+                "Remover o investimento " +
+                  x.name +
+                  "? O que já foi investido continua contando no guardado.",
+              )
+            )
+              return;
+            S.invests = S.invests.filter(function (y) {
+              return y !== x;
+            });
+          } else {
+            var nm = prompt("Nome do investimento:", x.name),
+              mo = parseFloat(
+                String(
+                  prompt(
+                    "Quanto investir por ciclo (deixe vazio pra nenhum):",
+                    Number(x.monthly) || "",
+                  ),
+                ).replace(",", "."),
+              );
+            if (nm && nm.trim()) x.name = nm.trim();
+            if (!isNaN(mo)) x.monthly = mo > 0 ? mo : 0;
+          }
+          save();
+          render();
+        });
         $("exp").onclick = function () {
           var a = document.createElement("a");
           a.href = URL.createObjectURL(
@@ -6044,8 +6348,13 @@
         $("repcopy").onclick = function () {
           var btn = this,
             partes = [];
-          document.querySelectorAll("#rep .repc.on").forEach(function (b) {
-            partes.push(b.textContent.replace(/\s+/g, " ").trim());
+          document.querySelectorAll("#rep input:checked").forEach(function (c) {
+            var linha = c.parentNode;
+            partes.push(
+              linha.querySelector("span").textContent +
+                " " +
+                linha.querySelector("b").textContent,
+            );
           });
           if (!partes.length)
             return status("Marque o que entra no repasse primeiro.");
@@ -6061,6 +6370,23 @@
               status("Não deu pra copiar: " + txt);
             });
           else status(txt);
+        };
+        /* Marcar tudo / limpar o repasse de uma vez. */
+        function repMarca(tudo) {
+          var m = month();
+          m.rep = [];
+          document.querySelectorAll("#rep input[type=checkbox]").forEach(function (c) {
+            c.checked = tudo;
+            if (tudo) m.rep.push(c.dataset.k);
+          });
+          save();
+          repTot();
+        }
+        $("repall").onclick = function () {
+          repMarca(true);
+        };
+        $("repnone").onclick = function () {
+          repMarca(false);
         };
         $("pdbtn").onclick = function () {
           var v = parseInt($("pday").value, 10);
@@ -6737,6 +7063,7 @@
               sum(mm, "fixed") -
               sum(mm, "var") -
               sum(mm, "meta") -
+              sum(mm, "inv") -
               sum(mm, "div")
             );
           });
@@ -7078,6 +7405,7 @@
                 restoreCur();
                 status("Alterações locais enviadas para o banco de dados ✓");
                 push();
+                ready = true;
                 render();
               } else {
                 S = d;
@@ -7086,10 +7414,12 @@
                 local();
                 restoreCur();
                 status("Banco de dados local conectado ✓");
+                ready = true;
                 render();
               }
             } else {
               status("Banco de dados local conectado ✓");
+              ready = true;
               push();
             }
           })
@@ -7097,6 +7427,8 @@
             status(
               "Modo navegador: dados só neste navegador. Abra pelo server.js para usar o banco de dados.",
             );
+            ready = true;
+            render();
           });
       })();
     </script>

@@ -87,25 +87,30 @@ Em cada item da lista:
 - **Cancelar** → só em Fixos: para de repetir nos próximos ciclos;
 - **✕** → remover.
 
-Abaixo das listas tem a **calculadora de repasse** — *Quanto mandar (pix)*: clique nas
-contas e no que falta de cada dívida pra ver o total na hora e **Copiar detalhe**
-pra colar na conversa. Serve pra não errar a conta na hora de mandar o dinheiro.
+Abaixo das listas tem a **calculadora de repasse** — *Quanto mandar (pix)*: marque
+as contas e a parcela de cada dívida (ou use **Marcar tudo** / **Limpar**) pra ver o
+total na hora e **Copiar detalhe** pra colar na conversa. Serve pra não errar a
+conta na hora de mandar o dinheiro.
 
-### Passo 3 — Metas
+### Passo 3 — Metas e investimentos
 
 1. **Criar meta** → nome, valor alvo e *Guardar por mês*.
 2. Na meta, clique em **Guardar** (ou "Guardar mais") e informe quanto guardou neste ciclo.
-3. O valor guardado aparece no Resumo como **Metas** — dinheiro que saiu da conta mas continua sendo seu.
+3. **Investimentos** (bitcoin, CDB, poupança…): **Novo investimento** → nome e, se quiser,
+   quanto investe por ciclo. Depois clique em **Investir** e informe o valor do aporte.
+   Em **Opções** dá pra **Resgatar** (tirar) e registrar valores diferentes a cada ciclo.
+4. Metas e investimentos formam o **Guardado** no Resumo — dinheiro que saiu da conta mas
+   continua sendo seu. Cada aporte tem um **✕** pra desfazer.
 
 ### Passo 4 — Resumo
 
 É a leitura do ciclo:
 
-- **Sobra prevista** (número grande) = renda − fixos − variáveis − metas − dívidas. Ele **já desconta contas que ainda não foram pagas**;
+- **Sobra prevista** (número grande) = renda − fixos − variáveis − guardado (metas + investimentos) − dívidas. Ele **já desconta contas que ainda não foram pagas**;
 - **Em caixa agora** = o que sobrou do ciclo anterior + renda − o que já saiu. É o número que mais se parece com o extrato do banco;
 - **Ainda a pagar** = contas fixas + variáveis que faltam;
 - **Posso gastar por dia** = a sobra dividida pelos dias que restam no ciclo;
-- **Fechamento do ciclo** (no topo do Resumo) = você escreve com quanto o ciclo realmente terminou (o saldo do banco). O app mostra a diferença pro que ele previa, e esse valor passa a ser o saldo inicial do próximo ciclo sozinho;
+- **Fechamento do ciclo** = o app fecha sozinho com o que sobrou e usa isso como saldo inicial do próximo ciclo. Mudou alguma coisa? O fechamento e os ciclos seguintes se acertam na hora — não tem botão pra atualizar;
 - a **barra colorida** mostra para onde a renda foi; passe o mouse (ou use Tab) em cada trecho para ver o valor;
 - por baixo, as **Recomendações** (referências gerais, tipo a regra 50/30/20 — não é aconselhamento financeiro).
 
