@@ -87,10 +87,11 @@ Em cada item da lista:
 - **Cancelar** → só em Fixos: para de repetir nos próximos ciclos;
 - **✕** → remover.
 
-Abaixo das listas tem a **calculadora de repasse** — *Quanto mandar (pix)*: marque
-as contas e a parcela de cada dívida (ou use **Marcar tudo** / **Limpar**) pra ver o
-total na hora e **Copiar detalhe** pra colar na conversa. Serve pra não errar a
-conta na hora de mandar o dinheiro.
+Abaixo das listas tem a **calculadora de repasse** — *Quanto mandar (pix)*: ela vem
+recolhida (clique no título pra abrir, e o total fica sempre à vista na linha do
+título). Marque as contas e a parcela de cada dívida (ou use **Marcar tudo** /
+**Limpar**) pra ver o total na hora e **Copiar detalhe** pra colar na conversa.
+Serve pra não errar a conta na hora de mandar o dinheiro.
 
 ### Passo 3 — Metas e investimentos
 

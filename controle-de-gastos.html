@@ -256,21 +256,21 @@
       #next {
         min-width: 44px;
       }
-      /* acordeões (Criar meta / Opções) abrem deslizando em vez de pular */
+      /* "Criar meta" abre deslizando em vez de pular. O menu "Opções" é um
+         dropdown absoluto: animar a altura dele recortava o menu na hora de
+         fechar (o div ficava preso num wrapper com overflow:hidden). */
       @supports (interpolate-size: allow-keywords) {
         :root {
           interpolate-size: allow-keywords;
         }
-        details.goal-create::details-content,
-        details.goal-options::details-content {
+        details.goal-create::details-content {
           height: 0;
           overflow: hidden;
           transition:
             height 300ms cubic-bezier(0.22, 1, 0.36, 1),
             content-visibility 300ms allow-discrete;
         }
-        details.goal-create[open]::details-content,
-        details.goal-options[open]::details-content {
+        details.goal-create[open]::details-content {
           height: auto;
         }
       }
@@ -1502,24 +1502,52 @@
         outline: 2px solid var(--ring);
         outline-offset: 1px;
       }
-      .rep-foot {
+      /* Calculadora de repasse (pix): vem fechada pra não repetir na tela as
+         mesmas contas que já estão nas listas de gastos. */
+      .rep-det > summary {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
         gap: 10px;
-        margin-top: 14px;
-        padding-top: 14px;
-        border-top: 1px solid var(--line);
+        min-height: 44px;
+        cursor: pointer;
+        list-style: none;
       }
-      .rep-foot b {
+      .rep-det > summary::-webkit-details-marker {
+        display: none;
+      }
+      .rep-det > summary span {
+        font-size: 1.06rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .rep-det > summary b {
+        margin-left: auto;
         font-size: 1.35rem;
         font-variant-numeric: tabular-nums;
+      }
+      .rep-det > summary::after {
+        content: "";
+        flex: none;
+        width: 9px;
+        height: 9px;
+        margin-top: -4px;
+        border-right: 2px solid var(--mut);
+        border-bottom: 2px solid var(--mut);
+        transform: rotate(45deg);
+        transition: transform 0.2s ease;
+      }
+      .rep-det[open] > summary::after {
+        margin-top: 4px;
+        transform: rotate(-135deg);
       }
       .rep-acoes {
         display: flex;
         flex-wrap: wrap;
+        justify-content: flex-end;
         gap: 6px;
-        margin-left: auto;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
       }
       .rep-acoes button {
         font-size: 0.86rem;
@@ -1739,6 +1767,9 @@
         margin-left: auto;
       }
       .goal-options > summary {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
         cursor: pointer;
         padding: 8px 11px;
         border: 1px solid var(--line);
@@ -1747,6 +1778,17 @@
         font-size: 0.8rem;
         list-style: none;
         background: var(--card);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .goal-options[open] > div {
+          animation: menuIn 150ms ease-out both;
+        }
+        @keyframes menuIn {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+        }
       }
       .goal-options > summary::-webkit-details-marker {
         display: none;
@@ -2136,6 +2178,10 @@
           min-width: 0;
         }
         .expense-list li > .r {
+          /* valor + botões quebram em duas linhas em tela bem estreita (~320px)
+             em vez de empurrar a página pra fora da tela */
+          flex-wrap: wrap;
+          justify-content: flex-end;
           margin-left: auto;
         }
       }
@@ -2164,7 +2210,10 @@
           flex-basis: 100%;
         }
         .nav-period {
-          min-width: 120px;
+          /* em tela bem estreita o período encolhe (a data quebra em 2 linhas)
+             em vez de empurrar o cabeçalho pra fora da tela */
+          min-width: 0;
+          flex: 1 1 auto;
         }
         .big {
           font-size: 2.5rem;
@@ -4041,22 +4090,28 @@
         </section>
       </div>
 
-      <section class="card" data-tab="gastos">
-        <h2>Quanto mandar (pix)</h2>
-        <p class="sub">
-          Marque o que entra no repasse deste ciclo — as contas e a parcela das
-          dívidas. O total sai na hora, pra você não errar a conta.
-        </p>
-        <div class="rep" id="rep" role="group" aria-label="Itens do repasse"></div>
-        <div class="rep-foot">
-          <span class="sub">Total do repasse</span>
-          <b id="reptot">R$ 0,00</b>
-          <span class="rep-acoes">
+      <section class="card rep-card" data-tab="gastos">
+        <details class="rep-det">
+          <summary>
+            <span>Quanto mandar (pix)</span>
+            <b id="reptot">R$ 0,00</b>
+          </summary>
+          <p class="sub">
+            Marque o que entra no repasse deste ciclo — as contas e a parcela
+            das dívidas. O total sai na hora, pra você não errar a conta.
+          </p>
+          <div
+            class="rep"
+            id="rep"
+            role="group"
+            aria-label="Itens do repasse"
+          ></div>
+          <div class="rep-acoes">
             <button type="button" id="repall">Marcar tudo</button>
             <button type="button" id="repnone">Limpar</button>
             <button class="p" type="button" id="repcopy">Copiar detalhe</button>
-          </span>
-        </div>
+          </div>
+        </details>
       </section>
 
       <div class="cols" data-tab="metas" data-grp="metas">
@@ -6312,6 +6367,23 @@
           }
           save();
           render();
+        });
+        /* Menu "Opções" (metas/investimentos): fecha ao clicar fora, ao abrir
+           outro e no Esc — senão ele ficava aberto cobrindo o card. */
+        document.addEventListener("click", function (e) {
+          var t = e.target;
+          var dentro = t && t.closest ? t.closest(".goal-options") : null;
+          document.querySelectorAll(".goal-options[open]").forEach(function (o) {
+            if (o !== dentro) o.open = false;
+          });
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key !== "Escape") return;
+          var o = document.querySelector(".goal-options[open]");
+          if (!o) return;
+          o.open = false;
+          var s = o.querySelector("summary");
+          if (s) s.focus();
         });
         $("exp").onclick = function () {
           var a = document.createElement("a");
