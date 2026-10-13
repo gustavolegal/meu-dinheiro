@@ -563,56 +563,78 @@
       .big.neg {
         color: var(--bad);
       }
-      /* Cálculo da sobra em "chips" (era a linha cinza embaixo do número) */
-      .equals {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
+      /* "Faltam pagar": o módulo das contas do ciclo — total (na mesma
+         tipografia do eyebrow da sobra), progresso do que já saiu e a lista com
+         o ✓ pra marcar pago ali mesmo. Fica abaixo da barra, sempre visível. */
+      .pend-box {
         margin-top: 18px;
         padding-top: 16px;
         border-top: 1px solid var(--line-2);
       }
-      .eq-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 7px 11px;
-        border-radius: 11px;
-        border: 1px solid var(--line);
-        background: color-mix(in srgb, var(--card-2) 72%, transparent);
+      .pend-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+      }
+      .pend-head b {
+        font-size: 1.3rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
         font-variant-numeric: tabular-nums;
       }
-      .eq-chip i {
-        width: 9px;
-        height: 9px;
-        flex: none;
-        border-radius: 50%;
-      }
-      .eq-chip small {
-        font-size: 0.72rem;
+      .pend-head em {
+        margin-left: auto;
         color: var(--mut);
+        font-size: 0.78rem;
+        font-style: normal;
+        font-variant-numeric: tabular-nums;
       }
-      .eq-chip b {
-        font-size: 0.86rem;
+      .pend-box .pay-progress {
+        margin-top: 10px;
+      }
+      .pend-box ul {
+        list-style: none;
+        margin: 12px 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 0 22px;
+      }
+      .pend-box li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 46px;
+        padding: 2px 0;
+        font-size: 0.88rem;
+        border-top: 1px dashed color-mix(in oklab, var(--line) 60%, transparent);
+      }
+      .pend-box li .pn {
+        flex: 1;
+        min-width: 0;
+        line-height: 1.3;
+        /* o texto do app é nowrap por padrão: aqui o nome/categoria precisa
+           poder quebrar, senão a linha da data sai cortada quando a coluna é
+           estreita */
+        white-space: normal;
+      }
+      .pend-box li .pn small {
+        display: block;
+        color: var(--mut);
+        font-size: 0.75rem;
+      }
+      .pend-box li .pv {
         color: var(--ink);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
-      .eq-chip.is-total {
-        border-color: color-mix(in oklab, var(--ok) 40%, var(--line));
-        background: color-mix(
-          in oklab,
-          var(--ok) 12%,
-          color-mix(in srgb, var(--card-2) 72%, transparent)
-        );
-      }
-      .eq-chip.is-total b {
-        color: var(--ok);
-        font-size: 0.95rem;
-      }
-      .eq-op {
-        color: var(--mut);
-        font-weight: 700;
-        font-size: 0.9rem;
+      /* Alvo de toque maior que o padrão da lista (26px) — aqui é a ação
+         principal do bloco. */
+      .pend-box li .pg {
+        width: 40px;
+        height: 40px;
       }
       .hero-real {
         margin-top: 16px;
@@ -655,28 +677,6 @@
         color: var(--mut);
         font-size: 0.68rem;
         line-height: 1.3;
-      }
-      .flow-card.due {
-        border-color: color-mix(in oklab, var(--var) 42%, var(--line));
-        background: color-mix(
-          in oklab,
-          var(--var) 14%,
-          color-mix(in srgb, var(--card-2) 62%, transparent)
-        );
-      }
-      .flow-card.due b {
-        color: var(--var);
-      }
-      .flow-card.due.is-clear {
-        border-color: color-mix(in oklab, var(--ok) 42%, var(--line));
-        background: color-mix(
-          in oklab,
-          var(--ok) 14%,
-          color-mix(in srgb, var(--card-2) 62%, transparent)
-        );
-      }
-      .flow-card.due.is-clear b {
-        color: var(--ok);
       }
       .flow-card.meta {
         border-color: color-mix(in oklab, var(--meta) 42%, var(--line));
@@ -731,7 +731,9 @@
         color: var(--ink);
         font-variant-numeric: tabular-nums;
       }
-      /* "Posso gastar por dia": métrica de bolso, no topo do resumo. */
+      /* "Posso gastar por dia / por fim de semana": as duas métricas de bolso
+         do ciclo, lado a lado. O de fim de semana vivia escondido no canto,
+         em letra miúda — agora tem o mesmo peso do por dia. */
       .daily {
         display: flex;
         align-items: center;
@@ -761,7 +763,21 @@
         background: color-mix(in oklab, var(--ok) 18%, transparent);
         color: var(--ok);
       }
+      .daily-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .daily-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 2px 20px;
+      }
       .daily-tx {
+        flex: 0 1 auto;
         min-width: 0;
       }
       .daily small {
@@ -771,22 +787,17 @@
         letter-spacing: 0.02em;
       }
       .daily b {
-        font-size: 1.4rem;
-        line-height: 1.2;
+        display: block;
+        font-size: clamp(1.1rem, 5vw, 1.4rem);
+        line-height: 1.15;
+        letter-spacing: -0.02em;
         font-variant-numeric: tabular-nums;
       }
       .daily-when {
-        margin-left: auto;
-        flex: none;
-        text-align: right;
         font-size: 0.72rem;
         line-height: 1.35;
         color: var(--mut);
         font-variant-numeric: tabular-nums;
-      }
-      .daily-when b {
-        font-size: 0.78rem;
-        color: var(--ink);
       }
       .daily.warn {
         border-color: color-mix(in oklab, var(--bad) 34%, var(--line));
@@ -979,9 +990,6 @@
         animation-delay: calc(var(--i, 0) * 55ms);
         transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
       }
-      .donut .dseg.is-dim {
-        opacity: 0.22;
-      }
       .donut-center {
         position: absolute;
         inset: 0;
@@ -1074,55 +1082,6 @@
         from {
           opacity: 0;
         }
-      }
-      .legend {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-        gap: 8px;
-        margin-top: 16px;
-        font-size: 0.78rem;
-        color: var(--mut);
-      }
-      .legend > span {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-        padding: 9px 12px;
-        border: 1px solid var(--line);
-        border-radius: 11px;
-        background: color-mix(in srgb, var(--card-2) 58%, transparent);
-        cursor: default;
-        transition: border-color 160ms cubic-bezier(0.32, 0.72, 0, 1);
-      }
-      .legend > span:hover {
-        border-color: color-mix(in srgb, var(--line) 45%, var(--mut));
-      }
-      .legend i {
-        display: inline-block;
-        flex: none;
-        width: 10px;
-        height: 10px;
-        border-radius: 3px;
-      }
-      .legend small {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .legend b {
-        margin-left: auto;
-        color: var(--ink);
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-      }
-      .legend em {
-        font-size: 0.9em;
-        font-style: normal;
-        opacity: 0.6;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
       }
       .spark-wrap {
         margin-top: 6px;
@@ -3038,7 +2997,6 @@
       }
       [data-theme="aero"] .hero-top,
       [data-theme="aero"] .bar,
-      [data-theme="aero"] .legend,
       [data-theme="aero"] .grid {
         position: relative;
         z-index: 1;
@@ -3132,7 +3090,6 @@
       }
       [data-theme="aeromoon"] .hero-top,
       [data-theme="aeromoon"] .bar,
-      [data-theme="aeromoon"] .legend,
       [data-theme="aeromoon"] .grid {
         position: relative;
         z-index: 1;
@@ -3894,8 +3851,7 @@
           <div class="donut" id="donut" aria-hidden="true"></div>
         </div>
         <div class="bar" id="bar"></div>
-        <div class="legend" id="legend"></div>
-        <div class="equals" id="eq" aria-live="polite"></div>
+        <div class="pend-box" id="pend"></div>
         <div class="grid" id="stats"></div>
       </section>
 
@@ -4523,6 +4479,50 @@
             currency: "BRL",
           });
         }
+        /* Quando o gasto entrou no app, no formato "12/out 14:32". */
+        function when(ts) {
+          if (!ts) return "";
+          var d = new Date(ts);
+          return (
+            d
+              .toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+              .replace(/\./g, "") +
+            " " +
+            d.toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          );
+        }
+        /* Quantos fins de semana ainda cabem entre hoje e a data do próximo
+           pagamento. Conta no calendário de verdade mesmo: um ciclo tem 4, o
+           outro 5, não dá pra chutar. Cada sáb+dom conta como um só (a chave é
+           a segunda-feira daquela semana). */
+        function weekends(until) {
+          var now = new Date(),
+            d = new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+            end = new Date(
+              until.getFullYear(),
+              until.getMonth(),
+              until.getDate(),
+            ),
+            n = 0,
+            last = -1;
+          for (; d < end; d.setDate(d.getDate() + 1)) {
+            var wd = d.getDay();
+            if (wd !== 0 && wd !== 6) continue;
+            var wk = new Date(
+              d.getFullYear(),
+              d.getMonth(),
+              d.getDate() - ((wd + 6) % 7),
+            );
+            if (+wk !== last) {
+              last = +wk;
+              n++;
+            }
+          }
+          return n;
+        }
         function $(id) {
           return document.getElementById(id);
         }
@@ -4617,7 +4617,6 @@
             mt = sum(m, "meta") + sum(m, "inv"),
             dv = sum(m, "div"),
             ic = inc(m),
-            ex = ic - m.salary,
             /* Metas entram no previsto: soma o "guardar por mês" das metas
                ativas, limitado ao que ainda falta. A sobra prevista reserva
                esse plano em vez de ignorá-lo até você guardar de fato. */
@@ -4727,71 +4726,73 @@
                 barHover(segment, false);
               });
             });
-          var eqEl = $("eq");
-          if (eqEl) {
-            var eqDetail =
-              "base " +
-              brl(m.salary || 0) +
-              (ex > 0
-                ? [
-                    ["Comissão", "comissões"],
-                    ["Hora extra", "hora extra"],
-                    ["Outro extra", "outros"],
-                  ]
-                    .map(function (p) {
-                      var v = isum(m, p[0]);
-                      return v > 0 ? " + " + p[1] + " " + brl(v) : "";
+          /* "Faltam pagar": o módulo das contas do ciclo — total, progresso do
+             que já saiu e a lista com o ✓ pra marcar pago daqui mesmo. Fica
+             logo abaixo da barra, sempre visível; o hero não repete mais esse
+             número (antes ele aparecia em 3 lugares). */
+          var pendEl = $("pend");
+          if (pendEl) {
+            var pend = m.items.filter(function (i) {
+                return (i.t === "fixed" || i.t === "var") && !i.p;
+              }),
+              pagas = m.items.filter(function (i) {
+                return (i.t === "fixed" || i.t === "var") && i.p;
+              }),
+              contas = pend.length + pagas.length,
+              contasTotal = fx + vr,
+              pctPago =
+                contasTotal > 0
+                  ? Math.min(100, Math.round((paidFix / contasTotal) * 100))
+                  : 100,
+              progresso =
+                contasTotal > 0
+                  ? '<div class="pay-progress"><div class="pay-track" role="progressbar" aria-label="Contas do ciclo já pagas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
+                    pctPago +
+                    '"><i style="width:' +
+                    pctPago +
+                    '%"></i></div><div class="pay-legend"><span>Já paguei ' +
+                    brl(paidFix) +
+                    " de " +
+                    brl(contasTotal) +
+                    "</span><b>" +
+                    pagas.length +
+                    " de " +
+                    contas +
+                    (pagas.length === 1 ? " conta paga" : " contas pagas") +
+                    "</b></div></div>"
+                  : "";
+            pendEl.innerHTML =
+              '<div class="pend-head"><span class="eyebrow">Faltam pagar</span><b>' +
+              brl(falta) +
+              "</b><em>" +
+              (pend.length
+                ? pend.length +
+                  (pend.length === 1 ? " conta em aberto" : " contas em aberto")
+                : "tudo pago ✓") +
+              "</em></div>" +
+              progresso +
+              (pend.length
+                ? "<ul>" +
+                  pend
+                    .map(function (i) {
+                      return (
+                        '<li><span class="pn">' +
+                        esc(i.n) +
+                        "<small>" +
+                        esc(i.c || "") +
+                        (i.at ? " · " + when(i.at) : "") +
+                        '</small></span><span class="pv">' +
+                        brl(i.v) +
+                        '</span><button class="pg" data-id="' +
+                        i.id +
+                        '" aria-pressed="false" aria-label="Marcar ' +
+                        esc(i.n) +
+                        ' como pago">○</button></li>'
+                      );
                     })
-                    .join("")
+                    .join("") +
+                  "</ul>"
                 : "");
-            var eqChip = function (lbl, val, dot, cls, title) {
-              return (
-                '<span class="eq-chip' +
-                (cls ? " " + cls : "") +
-                '"' +
-                (title ? ' title="' + title + '"' : "") +
-                '><i style="background:' +
-                dot +
-                '"></i><small>' +
-                lbl +
-                "</small><b>" +
-                brl(val) +
-                "</b></span>"
-              );
-            };
-            var eqOp = function (s) {
-              return '<span class="eq-op" aria-hidden="true">' + s + "</span>";
-            };
-            var eqParts = [
-              eqChip("Renda", ic, "var(--primary)", "", eqDetail),
-              eqOp("−"),
-              eqChip(
-                "Gastos",
-                fx + vr,
-                "linear-gradient(90deg,var(--fix),var(--var))",
-              ),
-              eqOp("−"),
-              eqChip("Guardado", mtForecast, "var(--meta)"),
-            ];
-            if (dv > 0) {
-              eqParts.push(eqOp("−"));
-              eqParts.push(eqChip("Dívidas", dv, "var(--bad)"));
-            }
-            eqParts.push(eqOp("="));
-            eqParts.push(eqChip("Sobra", left, "var(--ok)", "is-total"));
-            eqEl.innerHTML = eqParts.join("");
-            eqEl.setAttribute(
-              "aria-label",
-              "Renda " +
-                brl(ic) +
-                " menos gastos " +
-                brl(fx + vr) +
-                " menos guardado " +
-                brl(mtForecast) +
-                (dv > 0 ? " menos dívidas " + brl(dv) : "") +
-                " igual a sobra " +
-                brl(left),
-            );
           }
           var now = new Date(),
             t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()),
@@ -4881,31 +4882,11 @@
             '">' +
             brl(realLeft) +
             "</b></div>";
-          if (falta > 0)
-            st +=
-              '<div><span>Ainda a pagar (contas fixas + variáveis)</span><b>' +
-              brl(falta) +
-              "</b></div>";
           if (paidFix + mt + dv > 0)
             st +=
               '<div><span>Já saiu neste ciclo (pago + guardado)</span><b>' +
               brl(paidFix + mt + dv) +
               "</b></div>";
-          // Progresso = contas FIXAS apenas (variável pontual, tipo corte de
-          // cabelo, não é "conta").
-          var paidContas = m.items
-              .filter(function (i) {
-                return i.t === "fixed" && i.p;
-              })
-              .reduce(function (a, b) {
-                return a + b.v;
-              }, 0),
-            contasTotal = fx,
-            faltaContas = Math.max(0, contasTotal - paidContas),
-            pctPago =
-              contasTotal > 0
-                ? Math.min(100, Math.round((paidContas / contasTotal) * 100))
-                : 100;
           var real = $("real");
           if (real)
             real.innerHTML =
@@ -4918,39 +4899,17 @@
                 ? brl(startBal) + " do ciclo anterior + renda − o que já saiu"
                 : "renda − o que já saiu") +
               "</em></div>" +
-              '<span class="flow-op" aria-hidden="true">−</span>' +
-              '<div class="flow-card due' +
-              (falta > 0 ? "" : " is-clear") +
-              '"><small>Ainda a pagar</small><b>' +
-              brl(falta) +
-              "</b><em>" +
-              (falta > 0 ? "contas fixas + variáveis" : "nada! tudo em dia ✓") +
-              "</em></div>" +
               (metaDue > 0
                 ? '<span class="flow-op" aria-hidden="true">−</span>' +
                   '<div class="flow-card meta"><small>Metas do plano</small><b>' +
                   brl(metaDue) +
                   "</b><em>falta guardar</em></div>"
                 : "") +
-              "</div>" +
-              (contasTotal > 0
-                ? '<div class="pay-progress"><div class="pay-track" role="progressbar" aria-label="Contas fixas pagas neste ciclo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
-                  pctPago +
-                  '"><i style="width:' +
-                  pctPago +
-                  '%"></i></div><div class="pay-legend"><span>Já paguei ' +
-                  brl(paidContas) +
-                  " de " +
-                  brl(contasTotal) +
-                  " em contas fixas</span><b>" +
-                  (faltaContas > 0
-                    ? "faltam " + brl(faltaContas)
-                    : "tudo pago ✓") +
-                  "</b></div></div>"
-                : "");
+              "</div>";
           var _day = $("daily");
           if (_day) {
             var _dl = Math.max(1, daysLeft),
+              _wks = isNow ? weekends(nx) : 0,
               _perDay = left / _dl,
               _neg = _perDay < 0,
               _when = nx
@@ -4960,20 +4919,34 @@
                 })
                 .replace(/\./g, "");
             _day.className = "daily" + (_neg ? " warn" : "");
+            /* Duas métricas de bolso lado a lado, com o mesmo peso: por dia e
+               por fim de semana (o de fim de semana vivia escondido no canto,
+               em letra miúda). A linha de baixo é só contexto. */
             _day.innerHTML =
               '<span class="daily-ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>' +
+              '<span class="daily-body"><span class="daily-metrics">' +
               '<span class="daily-tx"><small>' +
               (isNow ? "Posso gastar por dia" : "Sobra por dia do ciclo") +
               "</small><b>" +
               brl(Math.max(0, _perDay)) +
               "</b></span>" +
-              '<span class="daily-when"><b>' +
+              (_wks
+                ? '<span class="daily-tx"><small>Dá por fim de semana</small><b>' +
+                  brl(Math.max(0, left / _wks)) +
+                  "</b></span>"
+                : "") +
+              '</span><span class="daily-when">' +
               (isNow ? "até " + _when : _when) +
-              "</b><br>" +
+              " · " +
               _dl +
               (_dl === 1 ? " dia" : " dias") +
+              (_wks
+                ? " · " +
+                  _wks +
+                  (_wks === 1 ? " fim de semana" : " fins de semana")
+                : "") +
               (_neg ? " · sobra negativa" : "") +
-              "</span>";
+              "</span></span>";
           }
           /* Fechamento do ciclo: automático, sem botão. O app fecha com o que
              ele mesmo calculou e joga isso como saldo inicial do próximo ciclo,
@@ -5084,6 +5057,7 @@
                       "<small>" +
                       esc(i.c) +
                       (i.stop ? " · cancelado, não repete mais" : "") +
+                      (i.at ? " · " + when(i.at) : "") +
                       '</small></span><span class="r"><button class="pg' +
                       (i.p ? " on" : "") +
                       '" data-id="' +
@@ -5929,6 +5903,7 @@
             if (!i[0].value.trim() || !(v >= 0)) return;
             month().items.push({
               id: Date.now() + Math.random(),
+              at: Date.now(),
               t: f.dataset.t,
               n: i[0].value.trim(),
               v: v,
@@ -6031,6 +6006,16 @@
           if (!it) return;
           it.p = !it.p;
           save();
+          /* Fechou as contas do ciclo? Merece confete, igual dívida quitada. */
+          if (
+            it.p &&
+            !_rm &&
+            (it.t === "fixed" || it.t === "var") &&
+            !m.items.some(function (x) {
+              return (x.t === "fixed" || x.t === "var") && !x.p;
+            })
+          )
+            confetti();
           render();
         });
         /* Calculadora de repasse: marca/desmarca e atualiza o total na hora. */
@@ -6067,6 +6052,7 @@
             if (!o) return;
             m.items.push({
               id: Date.now() + Math.random(),
+              at: Date.now(),
               t: "fixed",
               n: o.n,
               v: o.v,
@@ -6122,6 +6108,7 @@
             tp = sel ? sel.value : "Comissão";
           month().items.push({
             id: Date.now() + Math.random(),
+            at: Date.now(),
             t: "inc",
             n: i[0].value.trim() || tp,
             v: v,
@@ -6184,6 +6171,7 @@
               return;
             mm.items.push({
               id: Date.now() + Math.random(),
+              at: Date.now(),
               t: "div",
               did: d.id,
               n: d.name,
@@ -6293,6 +6281,7 @@
               return;
             mm.items.push({
               id: Date.now() + Math.random(),
+              at: Date.now(),
               t: "meta",
               gid: g.id,
               n: g.name,
@@ -6372,6 +6361,7 @@
               return;
             mm.items.push({
               id: Date.now() + Math.random(),
+              at: Date.now(),
               t: "inv",
               iid: x.id,
               n: x.name,
@@ -6399,6 +6389,7 @@
               return;
             mm.items.push({
               id: Date.now() + Math.random(),
+              at: Date.now(),
               t: "inv",
               iid: x.id,
               n: x.name + " (resgate)",
@@ -7160,28 +7151,6 @@
             "</b><small>sobra &middot; " +
             pct +
             "%</small></div>";
-          var lg = $("legend");
-          if (lg)
-            lg.innerHTML = all
-              .filter(function (p) {
-                return p[2] > 0.005;
-              })
-              .map(function (p) {
-                return (
-                  '<span data-key="' +
-                  p[0] +
-                  '"><i style="background:var(--' +
-                  p[0] +
-                  ')"></i><small>' +
-                  esc(p[1]) +
-                  '</small><b>' +
-                  brl(p[2]) +
-                  '</b><em>' +
-                  Math.round((p[2] / denom) * 100) +
-                  "%</em></span>"
-                );
-              })
-              .join("");
         }
         function spark() {
           var el = $("spark");
@@ -7494,23 +7463,6 @@
         initFireflies();
         tiltHero();
         glassLight();
-        var _lg = $("legend");
-        if (_lg) {
-          var _dim = function (k) {
-            var el2 = $("donut");
-            if (!el2) return;
-            el2.querySelectorAll(".dseg").forEach(function (p) {
-              p.classList.toggle("is-dim", k != null && p.dataset.k !== k);
-            });
-          };
-          _lg.onmouseover = function (e) {
-            var s = e.target.closest ? e.target.closest("[data-key]") : null;
-            if (s) _dim(s.dataset.key);
-          };
-          _lg.onmouseout = function () {
-            _dim(null);
-          };
-        }
         setInterval(applyTheme, 60000);
         setInterval(rotateScene, 600000);
         applyTheme();
@@ -7526,6 +7478,30 @@
           if (!e.hasAttribute("autocomplete"))
             e.setAttribute("autocomplete", "off");
           if (!e.name && e.id) e.name = e.id;
+        });
+        /* Outra aba do site salvou: adota o estado dela. Sem isso, a aba velha
+           grava por cima do banco com a cópia que estava na memória e some o
+           que você lançou na outra (dívida, valor editado...). */
+        var _stTimer = null;
+        window.addEventListener("storage", function (ev) {
+          if (ev.key !== KEY || !ev.newValue) return;
+          clearTimeout(_stTimer);
+          _stTimer = setTimeout(function () {
+            var o = null;
+            try {
+              o = JSON.parse(ev.newValue);
+            } catch (e) {
+              return;
+            }
+            if (!o || !o.months) return;
+            if (Number(o.savedAt || 0) <= Number(S.savedAt || 0)) return;
+            S = o;
+            if (!S.goals) S.goals = [];
+            if (!S.invests) S.invests = [];
+            if (!S.debts) S.debts = [];
+            migrate();
+            render();
+          }, 250);
         });
         fetch("/api/dados")
           .then(function (r) {

@@ -5,3 +5,5 @@ backups/
 meu-dinheiro-backup.json
 *.html.bak
 .opencode/
+
+graphify-out/
