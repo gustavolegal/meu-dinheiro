@@ -1086,6 +1086,143 @@
       .spark-wrap {
         margin-top: 6px;
       }
+      /* Calendário de gastos por dia: um anel por dia do ciclo (estilo Apple
+         Fit), com o total das variáveis lançadas naquele dia. */
+      .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px 4px;
+        margin-top: 14px;
+      }
+      .cal-head {
+        grid-column: 1 / -1;
+        font-size: 0.86rem;
+        color: var(--mut);
+      }
+      .cal-head b {
+        color: var(--ink);
+        font-size: 1rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .cal-note {
+        grid-column: 1 / -1;
+        margin: 4px 0 10px;
+        font-size: 0.72rem;
+        color: var(--mut);
+      }
+      .cal-wd {
+        padding-bottom: 4px;
+        text-align: center;
+        font-size: 0.64rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .cal-day {
+        display: grid;
+        justify-items: center;
+        gap: 1px;
+        padding: 3px 1px;
+        border: 0;
+        border-radius: 10px;
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.cal-day:hover {
+        background: color-mix(in oklab, var(--primary) 10%, transparent);
+      }
+      .cal-day.is-sel {
+        background: color-mix(in oklab, var(--primary) 16%, transparent);
+      }
+      .cal-day.is-off {
+        opacity: 0.32;
+        pointer-events: none;
+      }
+      .cal-ring {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 100%;
+        max-width: 44px;
+        aspect-ratio: 1;
+      }
+      .cal-ring svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+      }
+      .cal-track {
+        fill: none;
+        stroke: var(--line-2);
+        stroke-width: 3.6;
+      }
+      .cal-arc {
+        fill: none;
+        stroke: var(--var);
+        stroke-width: 3.6;
+        stroke-linecap: round;
+        transition: stroke-dasharray 0.45s ease;
+      }
+      .cal-day.is-over .cal-arc {
+        stroke: var(--bad);
+        stroke-width: 4.8;
+      }
+      .cal-n {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--mut);
+        font-variant-numeric: tabular-nums;
+      }
+      .cal-day.has .cal-n {
+        color: var(--ink);
+      }
+      .cal-day.is-today .cal-n {
+        color: var(--primary);
+        font-weight: 800;
+      }
+      .cal-v {
+        font-size: 0.6rem;
+        line-height: 1.2;
+        color: var(--mut);
+        white-space: nowrap;
+      }
+      .cal-day.is-over .cal-v {
+        color: var(--bad);
+      }
+      .cal-det {
+        margin-top: 14px;
+        border-top: 1px solid var(--line-2);
+        padding-top: 10px;
+      }
+      .cal-det:empty {
+        display: none;
+      }
+      .cal-det-h {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 10px;
+      }
+      .cal-det-h b {
+        text-transform: capitalize;
+      }
+      .cal-det-h span {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .cal-det .expense-list {
+        margin-top: 8px;
+      }
+      @media (max-width: 520px) {
+        .cal-v {
+          display: none;
+        }
+      }
       .stat-row {
         display: flex;
         gap: 18px;
@@ -3863,6 +4000,16 @@
         <div class="spark-wrap" id="spark"></div>
       </section>
 
+      <section class="card" data-tab="resumo">
+        <h2>Quanto gastei em cada dia</h2>
+        <p class="sub">
+          Um anel por dia do ciclo, com o total das variáveis lançadas naquele
+          dia. Toque num dia pra ver o que foi.
+        </p>
+        <div class="cal-grid" id="cal"></div>
+        <div class="cal-det" id="cal-detail" aria-live="polite"></div>
+      </section>
+
       <section class="card" data-tab="renda">
         <h2>Renda deste ciclo</h2>
         <p class="sub">
@@ -4479,7 +4626,16 @@
             currency: "BRL",
           });
         }
-        /* Quando o gasto entrou no app, no formato "12/out 14:32". */
+        /* O id do item é Date.now() na criação: o que foi lançado antes do campo
+           `at` existir ainda tem a data guardada no id. Vale só pra compra
+           (var) e entrada (inc) — conta fixa, meta e dívida não são "quando eu
+           comprei". */
+        function atOf(i) {
+          if (i.at) return i.at;
+          if ((i.t === "var" || i.t === "inc") && i.id > 1e12) return i.id;
+          return 0;
+        }
+        /* Quando o gasto entrou no app, no formato "12 de out 14:32". */
         function when(ts) {
           if (!ts) return "";
           var d = new Date(ts);
@@ -4780,7 +4936,7 @@
                         esc(i.n) +
                         "<small>" +
                         esc(i.c || "") +
-                        (i.at ? " · " + when(i.at) : "") +
+                        (atOf(i) ? " · " + when(atOf(i)) : "") +
                         '</small></span><span class="pv">' +
                         brl(i.v) +
                         '</span><button class="pg" data-id="' +
@@ -5057,7 +5213,7 @@
                       "<small>" +
                       esc(i.c) +
                       (i.stop ? " · cancelado, não repete mais" : "") +
-                      (i.at ? " · " + when(i.at) : "") +
+                      (atOf(i) ? " · " + when(atOf(i)) : "") +
                       '</small></span><span class="r"><button class="pg' +
                       (i.p ? " on" : "") +
                       '" data-id="' +
@@ -5185,6 +5341,7 @@
                     "<small>" +
                     esc(i.c || "Extra") +
                     (ok ? "" : " · a confirmar") +
+                    (atOf(i) ? " · " + when(atOf(i)) : "") +
                     '</small></span><span class="r"><button class="pg' +
                     (ok ? " on" : "") +
                     '" data-id="' +
@@ -7269,10 +7426,212 @@
             brl(max) +
             "</text></svg>";
         }
+        /* ---------- gastos por dia (calendário estilo Apple Fit) ----------
+           O anel de cada dia é a cota diária do ciclo (renda − fixos −
+           guardado − dívidas, dividida pelos dias do ciclo): passou disso, o
+           anel fica cheio e vermelho. Só as variáveis entram — são as compras
+           com data de verdade (conta fixa, meta e dívida não guardam o dia em
+           que foram pagas). */
+        var calPor = {},
+          calSel = "",
+          calIni = "",
+          calFim = "";
+        function calKey(d) {
+          var p = function (n) {
+            return (n < 10 ? "0" : "") + n;
+          };
+          return (
+            d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate())
+          );
+        }
+        function calNome(d, full) {
+          return d
+            .toLocaleDateString(
+              "pt-BR",
+              full
+                ? { weekday: "long", day: "2-digit", month: "long" }
+                : { day: "2-digit", month: "short" }
+            )
+            .replace(/\./g, "");
+        }
+        function calDet() {
+          var el = $("cal-detail");
+          if (!el || !calSel) return;
+          var q = calSel.split("-"),
+            d = new Date(+q[0], +q[1] - 1, +q[2]),
+            g = calPor[calSel];
+          el.innerHTML =
+            '<div class="cal-det-h"><b>' +
+            calNome(d, true) +
+            "</b><span>" +
+            brl(g ? g.v : 0) +
+            "</span></div>" +
+            (g
+              ? '<ul class="expense-list">' +
+                g.itens
+                  .map(function (i) {
+                    return (
+                      "<li><span>" +
+                      esc(i.n) +
+                      "<small>" +
+                      esc(i.c) +
+                      (atOf(i) ? " · " + when(atOf(i)).split(" ").pop() : "") +
+                      '</small></span><span class="r"><b>' +
+                      brl(i.v) +
+                      "</b></span></li>"
+                    );
+                  })
+                  .join("") +
+                "</ul>"
+              : '<p class="sub" style="margin:8px 0 0">Nada lançado nesse dia.</p>');
+        }
+        function cal(m, fx, mt, dv, ic) {
+          var el = $("cal");
+          if (!el) return;
+          var pay = pd(),
+            ini = new Date(cur.getFullYear(), cur.getMonth(), pay),
+            fim = new Date(cur.getFullYear(), cur.getMonth() + 1, pay - 1),
+            dias = Math.round((fim - ini) / 864e5) + 1,
+            cota = dias > 0 ? (ic - fx - mt - dv) / dias : 0,
+            hoje = calKey(new Date()),
+            total = 0,
+            max = 0,
+            maxDia = "",
+            comGasto = 0;
+          calIni = calKey(ini);
+          calFim = calKey(fim);
+          calPor = {};
+          m.items.forEach(function (i) {
+            if (i.t !== "var") return;
+            var ts = atOf(i);
+            if (!ts) return;
+            var ck = calKey(new Date(ts));
+            if (ck < calIni || ck > calFim) return;
+            var g = calPor[ck];
+            if (!g) g = calPor[ck] = { v: 0, itens: [] };
+            g.v += i.v;
+            g.itens.push(i);
+            total += i.v;
+          });
+          Object.keys(calPor).forEach(function (ck) {
+            if (calPor[ck].v <= 0) return;
+            comGasto++;
+            if (calPor[ck].v > max) {
+              max = calPor[ck].v;
+              var q = ck.split("-");
+              maxDia =
+                calNome(new Date(+q[0], +q[1] - 1, +q[2])) + " · " + brl(max);
+            }
+          });
+          calSel =
+            calSel >= calIni && calSel <= calFim
+              ? calSel
+              : hoje >= calIni && hoje <= calFim
+              ? hoje
+              : hoje < calIni
+              ? calIni
+              : calFim;
+          var sem = new Date(ini);
+          sem.setDate(sem.getDate() - ini.getDay());
+          var ate = new Date(fim);
+          ate.setDate(ate.getDate() + (6 - fim.getDay()));
+          var wd = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"],
+            html = "";
+          wd.forEach(function (x) {
+            html += '<span class="cal-wd">' + x + "</span>";
+          });
+          for (var d = new Date(sem); d <= ate; d.setDate(d.getDate() + 1)) {
+            var k = calKey(d),
+              dentro = k >= calIni && k <= calFim,
+              g = dentro ? calPor[k] : null,
+              v = g ? g.v : 0,
+              pct = v > 0 && cota > 0 ? Math.min(1, v / cota) : v > 0 && max > 0 ? Math.min(1, v / max) : 0,
+              over = cota > 0 && v > cota + 0.005,
+              sel = k === calSel,
+              anel =
+                '<span class="cal-ring"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="cal-track" cx="18" cy="18" r="15.9"></circle>' +
+                (pct > 0
+                  ? '<circle class="cal-arc" cx="18" cy="18" r="15.9" pathLength="100" stroke-dasharray="' +
+                    (pct * 100).toFixed(1) +
+                    ' 100"></circle>'
+                  : "") +
+                '</svg><b class="cal-n">' +
+                d.getDate() +
+                "</b></span>";
+            if (!dentro) {
+              html +=
+                '<span class="cal-day is-off" aria-hidden="true">' +
+                anel +
+                "</span>";
+              continue;
+            }
+            html +=
+              '<button type="button" class="cal-day' +
+              (v > 0 ? " has" : "") +
+              (over ? " is-over" : "") +
+              (k === hoje ? " is-today" : "") +
+              (sel ? " is-sel" : "") +
+              '" data-day="' +
+              k +
+              '" aria-pressed="' +
+              (sel ? "true" : "false") +
+              '" aria-label="' +
+              calNome(d, true) +
+              ": " +
+              (v > 0
+                ? brl(v) +
+                  " em variáveis" +
+                  (over ? ", acima da cota diária" : "")
+                : "nada lançado") +
+              '">' +
+              anel +
+              (v > 0
+                ? '<span class="cal-v">' +
+                  brl(v).replace(/,00$/, "") +
+                  "</span>"
+                : "") +
+              "</button>";
+          }
+          el.innerHTML =
+            '<div class="cal-head">' +
+            (total > 0
+              ? "<b>" +
+                brl(total) +
+                "</b> em variáveis, em " +
+                comGasto +
+                (comGasto === 1 ? " dia" : " dias") +
+                (maxDia ? " · maior: " + maxDia : "")
+              : "Nenhuma variável lançada neste ciclo ainda.") +
+            "</div>" +
+            (total > 0
+              ? '<p class="cal-note">' +
+                (cota > 0
+                  ? "Anel cheio = sua cota diária de <b>" +
+                    brl(cota) +
+                    "</b>. Cheio e vermelho = passou disso."
+                  : "Anel cheio = o dia mais caro do ciclo.") +
+                "</p>"
+              : "") +
+            html;
+          calDet();
+        }
+        document.addEventListener("click", function (e) {
+          var b = e.target.closest(".cal-day");
+          if (!b || b.tagName !== "BUTTON") return;
+          calSel = b.dataset.day;
+          document.querySelectorAll(".cal-day.is-sel").forEach(function (x) {
+            x.classList.remove("is-sel");
+            x.setAttribute("aria-pressed", "false");
+          });
+          b.classList.add("is-sel");
+          b.setAttribute("aria-pressed", "true");
+          calDet();
+        });
         function charts(m, fx, vr, mt, dv, ic, left) {
           goalWatch();
           donut(fx, vr, mt, dv, ic, left);
           spark();
+          cal(m, fx, mt, dv, ic);
         }
 
 /* ===================== ambiente vivo ===================== */
