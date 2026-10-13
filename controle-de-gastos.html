@@ -1096,13 +1096,29 @@
       }
       .cal-head {
         grid-column: 1 / -1;
-        font-size: 0.86rem;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .cal-tot {
+        font-size: 1.32rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .cal-unit {
+        font-size: 0.8rem;
         color: var(--mut);
       }
-      .cal-head b {
-        color: var(--ink);
-        font-size: 1rem;
+      .cal-sub {
+        flex-basis: 100%;
+        margin: 2px 0 0;
+        font-size: 0.78rem;
+        color: var(--mut);
         font-variant-numeric: tabular-nums;
+        text-wrap: pretty;
       }
       .cal-note {
         grid-column: 1 / -1;
@@ -1162,13 +1178,13 @@
       }
       .cal-arc {
         fill: none;
-        stroke: var(--var);
+        stroke: color-mix(in oklab, var(--var) 82%, var(--ink));
         stroke-width: 3.6;
         stroke-linecap: round;
         transition: stroke-dasharray 0.45s ease;
       }
       .cal-day.is-over .cal-arc {
-        stroke: var(--bad);
+        stroke: color-mix(in oklab, var(--bad) 88%, var(--ink));
         stroke-width: 4.8;
       }
       .cal-n {
@@ -1185,13 +1201,94 @@
         font-weight: 800;
       }
       .cal-v {
-        font-size: 0.6rem;
+        font-size: 0.65rem;
         line-height: 1.2;
         color: var(--mut);
         white-space: nowrap;
       }
       .cal-day.is-over .cal-v {
-        color: var(--bad);
+        color: color-mix(in oklab, var(--bad) 82%, var(--ink));
+        font-weight: 600;
+      }
+      .cal-top {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px 12px;
+        flex-wrap: wrap;
+      }
+      .cal-nav {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .cal-nav button {
+        min-width: 44px;
+        min-height: 44px;
+      }
+      .cal-tit {
+        min-width: 132px;
+        text-align: center;
+        font-size: 0.84rem;
+        text-transform: capitalize;
+        font-variant-numeric: tabular-nums;
+      }
+      .cal-meses {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .cal-mes {
+        display: grid;
+        gap: 3px;
+        padding: 8px 9px;
+        border: 0;
+        border-radius: 12px;
+        background: color-mix(in oklab, var(--line-2) 55%, transparent);
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cal-mes:hover {
+        background: color-mix(in oklab, var(--primary) 14%, transparent);
+      }
+      .cal-mes.is-atual {
+        outline: 1.5px solid color-mix(in oklab, var(--primary) 55%, transparent);
+        outline-offset: -1.5px;
+      }
+      .cal-mes-n {
+        font-size: 0.68rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .cal-mes-v {
+        font-size: 0.82rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .cal-mes.vazio .cal-mes-v {
+        color: var(--mut);
+        font-weight: 500;
+      }
+      .cal-mes-bar {
+        display: block;
+        max-width: 100%;
+        height: 4px;
+        border-radius: 3px;
+        background: var(--var);
+      }
+      .cal-mes.vazio .cal-mes-bar {
+        display: none;
+      }
+      @media (max-width: 420px) {
+        .cal-meses {
+          grid-template-columns: repeat(2, 1fr);
+        }
       }
       .cal-det {
         margin-top: 14px;
@@ -4003,8 +4100,8 @@
       <section class="card" data-tab="resumo">
         <h2>Quanto gastei em cada dia</h2>
         <p class="sub">
-          Um anel por dia do ciclo, com o total das variáveis lançadas naquele
-          dia. Toque num dia pra ver o que foi.
+          Um anel por dia com o total das variáveis lançadas. Dá pra ver o
+          ciclo, o mês ou o ano — e tocar num dia pra ver o que foi.
         </p>
         <div class="cal-grid" id="cal"></div>
         <div class="cal-det" id="cal-detail" aria-live="polite"></div>
@@ -6776,6 +6873,8 @@
         setView(v0);
         $("today").onclick = function () {
           initCur();
+          calVista = "ciclo";
+          calM = new Date();
           cycleFlash(0);
           render();
         };
@@ -7435,7 +7534,10 @@
         var calPor = {},
           calSel = "",
           calIni = "",
-          calFim = "";
+          calFim = "",
+          calP = null,
+          calVista = "ciclo",
+          calM = new Date();
         function calKey(d) {
           var p = function (n) {
             return (n < 10 ? "0" : "") + n;
@@ -7444,108 +7546,175 @@
             d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate())
           );
         }
-        function calNome(d, full) {
-          return d
-            .toLocaleDateString(
-              "pt-BR",
-              full
-                ? { weekday: "long", day: "2-digit", month: "long" }
-                : { day: "2-digit", month: "short" }
-            )
-            .replace(/\./g, "");
+        function calNome(d, modo) {
+          var o = { day: "2-digit", month: "short" };
+          if (modo === "longo")
+            o = { weekday: "long", day: "2-digit", month: "long" };
+          if (modo === "mes") o = { month: "long", year: "numeric" };
+          return d.toLocaleDateString("pt-BR", o).replace(/\./g, "");
         }
-        function calDet() {
-          var el = $("cal-detail");
-          if (!el || !calSel) return;
-          var q = calSel.split("-"),
-            d = new Date(+q[0], +q[1] - 1, +q[2]),
-            g = calPor[calSel];
-          el.innerHTML =
-            '<div class="cal-det-h"><b>' +
-            calNome(d, true) +
-            "</b><span>" +
-            brl(g ? g.v : 0) +
-            "</span></div>" +
-            (g
-              ? '<ul class="expense-list">' +
-                g.itens
-                  .map(function (i) {
-                    return (
-                      "<li><span>" +
-                      esc(i.n) +
-                      "<small>" +
-                      esc(i.c) +
-                      (atOf(i) ? " · " + when(atOf(i)).split(" ").pop() : "") +
-                      '</small></span><span class="r"><b>' +
-                      brl(i.v) +
-                      "</b></span></li>"
-                    );
-                  })
-                  .join("") +
-                "</ul>"
-              : '<p class="sub" style="margin:8px 0 0">Nada lançado nesse dia.</p>');
+        function calMesCurto(mk) {
+          var mo = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+          return mo[+mk.slice(5, 7) - 1] + "/" + mk.slice(2, 4);
         }
-        function cal(m, fx, mt, dv, ic) {
-          var el = $("cal");
-          if (!el) return;
-          var pay = pd(),
-            ini = new Date(cur.getFullYear(), cur.getMonth(), pay),
-            fim = new Date(cur.getFullYear(), cur.getMonth() + 1, pay - 1),
-            dias = Math.round((fim - ini) / 864e5) + 1,
-            cota = dias > 0 ? (ic - fx - mt - dv) / dias : 0,
-            hoje = calKey(new Date()),
-            total = 0,
-            max = 0,
-            maxDia = "",
-            comGasto = 0;
-          calIni = calKey(ini);
-          calFim = calKey(fim);
-          calPor = {};
-          m.items.forEach(function (i) {
-            if (i.t !== "var") return;
-            var ts = atOf(i);
-            if (!ts) return;
-            var ck = calKey(new Date(ts));
-            if (ck < calIni || ck > calFim) return;
-            var g = calPor[ck];
-            if (!g) g = calPor[ck] = { v: 0, itens: [] };
-            g.v += i.v;
-            g.itens.push(i);
-            total += i.v;
+        /* Soma as variáveis lançadas entre duas datas — varre todos os ciclos,
+           porque a compra mora no ciclo em que foi lançada. */
+        function calSoma(ini, fim) {
+          var a = calKey(ini),
+            b = calKey(fim),
+            r = { por: {}, porMes: {}, total: 0, max: 0, maxD: "", dias: 0 };
+          Object.keys(S.months || {}).forEach(function (kk) {
+            var mm = S.months[kk];
+            if (!mm || !mm.items) return;
+            mm.items.forEach(function (i) {
+              if (i.t !== "var") return;
+              var ts = atOf(i);
+              if (!ts) return;
+              var dk = calKey(new Date(ts));
+              if (dk < a || dk > b) return;
+              var g = r.por[dk];
+              if (!g) g = r.por[dk] = { v: 0, itens: [] };
+              g.v += i.v;
+              g.itens.push(i);
+              r.total += i.v;
+              var mk = dk.slice(0, 7);
+              r.porMes[mk] = (r.porMes[mk] || 0) + i.v;
+            });
           });
-          Object.keys(calPor).forEach(function (ck) {
-            if (calPor[ck].v <= 0) return;
-            comGasto++;
-            if (calPor[ck].v > max) {
-              max = calPor[ck].v;
-              var q = ck.split("-");
-              maxDia =
-                calNome(new Date(+q[0], +q[1] - 1, +q[2])) + " · " + brl(max);
+          Object.keys(r.por).forEach(function (dk) {
+            if (r.por[dk].v <= 0) return;
+            r.dias++;
+            if (!r.maxD || r.por[dk].v > r.max) {
+              r.max = r.por[dk].v;
+              r.maxD = dk;
             }
           });
-          calSel =
-            calSel >= calIni && calSel <= calFim
-              ? calSel
-              : hoje >= calIni && hoje <= calFim
-              ? hoje
-              : hoje < calIni
-              ? calIni
-              : calFim;
-          var sem = new Date(ini);
-          sem.setDate(sem.getDate() - ini.getDay());
-          var ate = new Date(fim);
-          ate.setDate(ate.getDate() + (6 - fim.getDay()));
-          var wd = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"],
+          return r;
+        }
+        /* O período em cartaz: o ciclo, o mês ou o ano. */
+        function calPer() {
+          var pay = pd();
+          if (calVista === "mes") {
+            return {
+              ini: new Date(calM.getFullYear(), calM.getMonth(), 1),
+              fim: new Date(calM.getFullYear(), calM.getMonth() + 1, 0),
+              tit: calNome(calM, "mes")
+            };
+          }
+          if (calVista === "ano") {
+            return {
+              ini: new Date(calM.getFullYear(), 0, 1),
+              fim: new Date(calM.getFullYear(), 11, 31),
+              tit: String(calM.getFullYear())
+            };
+          }
+          return {
+            ini: new Date(cur.getFullYear(), cur.getMonth(), pay),
+            fim: new Date(cur.getFullYear(), cur.getMonth() + 1, pay - 1),
+            tit: rng(cur)
+          };
+        }
+        function calTopo() {
+          var b = function (v, t, on) {
+            return (
+              '<button type="button" data-cv="' + v + '" aria-pressed="' +
+              (on ? "true" : "false") + '"' +
+              (on ? ' class="on"' : "") + ">" + t + "</button>"
+            );
+          };
+          return (
+            '<div class="cal-top"><div class="mode-seg" role="group" aria-label="Período do calendário">' +
+            b("ciclo", "Ciclo", calVista === "ciclo") +
+            b("mes", "Mês", calVista === "mes") +
+            b("ano", "Ano", calVista === "ano") +
+            '</div><div class="cal-nav"><button type="button" data-cn="-1" aria-label="Período anterior">‹</button><b class="cal-tit">' +
+            calP.tit +
+            '</b><button type="button" data-cn="1" aria-label="Próximo período">›</button></div></div>'
+          );
+        }
+        function calHead(r, cota) {
+          var meses = 0,
+            mMaior = "",
+            mVal = 0;
+          Object.keys(r.porMes).forEach(function (k) {
+            if (r.porMes[k] > 0) meses++;
+            if (r.porMes[k] > mVal) {
+              mVal = r.porMes[k];
+              mMaior = k;
+            }
+          });
+          /* No ano o "maior" é o mês mais caro; no ciclo/mês é o dia. */
+          var maior = "";
+          if (calVista === "ano") {
+            if (mMaior) maior = calMesCurto(mMaior) + " (" + brl(mVal) + ")";
+          } else if (r.maxD) {
+            maior =
+              calNome(new Date(r.maxD + "T00:00:00"), "") +
+              " (" +
+              brl(r.max) +
+              ")";
+          }
+          if (!r.total)
+            return (
+              '<div class="cal-head"><p class="cal-sub">' +
+              "Nenhuma variável lançada neste período." +
+              "</p></div>"
+            );
+          var qtd =
+            calVista === "ano"
+              ? meses + (meses === 1 ? " mês" : " meses")
+              : r.dias + (r.dias === 1 ? " dia" : " dias");
+          var nota = "";
+          if (cota > 0)
+            nota =
+              "Anel cheio = sua cota diária de <b>" +
+              brl(cota) +
+              "</b>. Cheio e vermelho = passou disso.";
+          else if (calVista === "ano")
+            nota =
+              "A barra de cada mês é o tamanho dele no ano — o mês mais caro fica cheio.";
+          else nota = "Anel cheio = o dia mais caro do mês.";
+          return (
+            '<div class="cal-head"><b class="cal-tot">' +
+            brl(r.total) +
+            '</b><span class="cal-unit">em variáveis</span>' +
+            '<p class="cal-sub">Gastou em ' +
+            qtd +
+            " · média " +
+            brl(
+              r.total / (calVista === "ano" ? meses || 1 : r.dias || 1)
+            ) +
+            (calVista === "ano" ? "/mês" : "/dia") +
+            (maior ? " · maior: " + maior : "") +
+            "</p></div>" +
+            '<p class="cal-note">' +
+            nota +
+            "</p>"
+          );
+        }
+        function calDias(r, cota) {
+          var sem = new Date(calP.ini);
+          sem.setDate(sem.getDate() - sem.getDay());
+          var ate = new Date(calP.fim);
+          ate.setDate(ate.getDate() + (6 - ate.getDay()));
+          var hoje = calKey(new Date()),
             html = "";
-          wd.forEach(function (x) {
+          ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"].forEach(function (
+            x
+          ) {
             html += '<span class="cal-wd">' + x + "</span>";
           });
           for (var d = new Date(sem); d <= ate; d.setDate(d.getDate() + 1)) {
             var k = calKey(d),
               dentro = k >= calIni && k <= calFim,
-              g = dentro ? calPor[k] : null,
+              g = dentro ? r.por[k] : null,
               v = g ? g.v : 0,
-              pct = v > 0 && cota > 0 ? Math.min(1, v / cota) : v > 0 && max > 0 ? Math.min(1, v / max) : 0,
+              pct =
+                v > 0 && cota > 0
+                  ? Math.min(1, v / cota)
+                  : v > 0 && r.max > 0
+                  ? Math.min(1, v / r.max)
+                  : 0,
               over = cota > 0 && v > cota + 0.005,
               sel = k === calSel,
               anel =
@@ -7576,7 +7745,7 @@
               '" aria-pressed="' +
               (sel ? "true" : "false") +
               '" aria-label="' +
-              calNome(d, true) +
+              calNome(d, "longo") +
               ": " +
               (v > 0
                 ? brl(v) +
@@ -7592,32 +7761,135 @@
                 : "") +
               "</button>";
           }
+          return html;
+        }
+        function calAno(r) {
+          var mo = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
+            y = calM.getFullYear(),
+            vals = [],
+            html = '<div class="cal-meses">';
+          for (var i = 0; i < 12; i++)
+            vals.push(r.porMes[y + "-" + (i < 9 ? "0" : "") + (i + 1)] || 0);
+          var mx = Math.max.apply(null, vals);
+          for (i = 0; i < 12; i++) {
+            var v = vals[i],
+              mk = y + "-" + (i < 9 ? "0" : "") + (i + 1),
+              atual = mk === calKey(new Date()).slice(0, 7),
+              pc = v > 0 && mx > 0 ? Math.max(8, Math.round((v / mx) * 100)) : 0;
+            html +=
+              '<button type="button" class="cal-mes' +
+              (v > 0 ? "" : " vazio") +
+              (atual ? " is-atual" : "") +
+              '" data-mes="' +
+              mk +
+              '"' +
+              (atual ? ' aria-current="date"' : "") +
+              ' aria-label="' +
+              mo[i] +
+              " de " +
+              y +
+              ": " +
+              (v > 0 ? brl(v) + " em variáveis" : "nada lançado") +
+              '"><span class="cal-mes-n">' +
+              mo[i] +
+              '</span><span class="cal-mes-v">' +
+              (v > 0 ? brl(v).replace(/,00$/, "") : "—") +
+              '</span><i class="cal-mes-bar" aria-hidden="true" style="width:' +
+              pc +
+              '%"></i></button>';
+          }
+          return html + "</div>";
+        }
+        function calDet() {
+          var el = $("cal-detail");
+          if (!el || !calSel) return;
+          var q = calSel.split("-"),
+            d = new Date(+q[0], +q[1] - 1, +q[2]),
+            g = calPor[calSel];
           el.innerHTML =
-            '<div class="cal-head">' +
-            (total > 0
-              ? "<b>" +
-                brl(total) +
-                "</b> em variáveis, em " +
-                comGasto +
-                (comGasto === 1 ? " dia" : " dias") +
-                (maxDia ? " · maior: " + maxDia : "")
-              : "Nenhuma variável lançada neste ciclo ainda.") +
-            "</div>" +
-            (total > 0
-              ? '<p class="cal-note">' +
-                (cota > 0
-                  ? "Anel cheio = sua cota diária de <b>" +
-                    brl(cota) +
-                    "</b>. Cheio e vermelho = passou disso."
-                  : "Anel cheio = o dia mais caro do ciclo.") +
-                "</p>"
-              : "") +
-            html;
-          calDet();
+            '<div class="cal-det-h"><b>' +
+            calNome(d, "longo") +
+            "</b><span>" +
+            brl(g ? g.v : 0) +
+            "</span></div>" +
+            (g
+              ? '<ul class="expense-list">' +
+                g.itens
+                  .map(function (i) {
+                    return (
+                      "<li><span>" +
+                      esc(i.n) +
+                      "<small>" +
+                      esc(i.c) +
+                      (atOf(i) ? " · " + when(atOf(i)).split(" ").pop() : "") +
+                      '</small></span><span class="r"><b>' +
+                      brl(i.v) +
+                      "</b></span></li>"
+                    );
+                  })
+                  .join("") +
+                "</ul>"
+              : '<p class="sub" style="margin:8px 0 0">Nada lançado nesse dia.</p>');
+        }
+        function cal(m, fx, mt, dv, ic) {
+          var el = $("cal");
+          if (!el) return;
+          calP = calPer();
+          calIni = calKey(calP.ini);
+          calFim = calKey(calP.fim);
+          var dias = Math.round((calP.fim - calP.ini) / 864e5) + 1,
+            cota =
+              calVista === "ciclo" && dias > 0 ? (ic - fx - mt - dv) / dias : 0,
+            r = calSoma(calP.ini, calP.fim),
+            hoje = calKey(new Date());
+          calPor = r.por;
+          calSel =
+            calSel >= calIni && calSel <= calFim
+              ? calSel
+              : hoje >= calIni && hoje <= calFim
+              ? hoje
+              : hoje < calIni
+              ? calIni
+              : calFim;
+          el.innerHTML =
+            calTopo() +
+            calHead(r, cota) +
+            (calVista === "ano" ? calAno(r) : calDias(r, cota));
+          if (calVista === "ano") $("cal-detail").innerHTML = "";
+          else calDet();
         }
         document.addEventListener("click", function (e) {
-          var b = e.target.closest(".cal-day");
-          if (!b || b.tagName !== "BUTTON") return;
+          var b = e.target.closest("[data-cv], [data-cn], [data-mes], .cal-day");
+          if (!b) return;
+          if (b.dataset.cv) {
+            if (b.dataset.cv !== "ciclo" && calVista === "ciclo")
+              calM = new Date(cur.getFullYear(), cur.getMonth(), 1);
+            calVista = b.dataset.cv;
+            render();
+            return;
+          }
+          if (b.dataset.cn) {
+            var dir = +b.dataset.cn;
+            if (calVista === "ciclo") {
+              var pn = $(dir < 0 ? "prev" : "next");
+              if (pn) pn.click();
+            } else {
+              calM =
+                calVista === "ano"
+                  ? new Date(calM.getFullYear() + dir, calM.getMonth(), 1)
+                  : new Date(calM.getFullYear(), calM.getMonth() + dir, 1);
+              render();
+            }
+            return;
+          }
+          if (b.dataset.mes) {
+            var q = b.dataset.mes.split("-");
+            calVista = "mes";
+            calM = new Date(+q[0], +q[1] - 1, 1);
+            render();
+            return;
+          }
+          if (b.tagName !== "BUTTON" || !b.dataset.day) return;
           calSel = b.dataset.day;
           document.querySelectorAll(".cal-day.is-sel").forEach(function (x) {
             x.classList.remove("is-sel");
