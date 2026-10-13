@@ -1734,6 +1734,23 @@
       .goal-cycle.paid b {
         color: var(--ok);
       }
+      /* ✕ do "guardado neste ciclo": desfaz o aporte do ciclo naquela meta */
+      .goal-cycle .undo {
+        margin-left: auto;
+        align-self: center;
+        padding: 2px 9px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--mut);
+        font-size: 0.75rem;
+        line-height: 1.5;
+      }
+      .goal-cycle .undo:hover {
+        border-color: var(--line);
+        background: var(--card-2);
+        color: var(--ink);
+      }
       .goal-actions {
         display: flex;
         flex-wrap: wrap;
@@ -5149,11 +5166,23 @@
           invests();
           debts();
           metaHistory();
+          /* O que cada card já mostra (meta/investimento e quanto foi guardado
+             nele neste ciclo) não se repete aqui. Só sobra nesta lista o que
+             ficou órfão: item de uma meta/investimento que já foi removido. */
           var gi = m.items.filter(function (i) {
-            return i.t === "meta" || i.t === "inv";
+            return (
+              (i.t === "meta" &&
+                !S.goals.some(function (g) {
+                  return g.id === i.gid;
+                })) ||
+              (i.t === "inv" &&
+                !S.invests.some(function (v) {
+                  return String(v.id) === String(i.iid);
+                }))
+            );
           });
           $("gmonth").innerHTML = gi.length
-            ? '<div class="sub" style="margin-top:12px">Guardado neste ciclo (já descontado do salário)</div><ul>' +
+            ? '<div class="sub" style="margin-top:12px">Guardado neste ciclo (meta ou investimento removido)</div><ul>' +
               gi
                 .map(function (i) {
                   return (
@@ -5335,7 +5364,7 @@
                             })
                             .replace(/\./g, "") +
                           "</span></div>") +
-                      (completed
+                      (completed && contrib <= 0
                         ? ""
                         : '<div class="goal-cycle' +
                           (contrib > 0 ? " paid" : "") +
@@ -5343,7 +5372,11 @@
                           (contrib > 0
                             ? "<b>✓ " +
                               brl(contrib) +
-                              ' guardado neste ciclo</b><span class="sub">Esta meta já recebeu neste ciclo</span>'
+                              ' guardado neste ciclo</b><span class="sub">Esta meta já recebeu neste ciclo</span><button class="undo" data-undo="meta" data-id="' +
+                              x.id +
+                              '" aria-label="Desfazer o que guardei em ' +
+                              esc(x.name) +
+                              ' neste ciclo">✕</button>'
                             : "<b>Nenhum valor guardado neste ciclo ainda</b>") +
                           "</div>") +
                       '<div class="goal-actions">' +
@@ -5950,6 +5983,40 @@
           }
           m.items = m.items.filter(function (i) {
             return String(i.id) !== b.dataset.id;
+          });
+          save();
+          render();
+        });
+        /* ✕ no card da meta: desfaz o que foi guardado nela neste ciclo (o
+           número mostrado no card é exatamente o que sai). */
+        document.addEventListener("click", function (e) {
+          var b = e.target.closest("[data-undo=meta]");
+          if (!b) return;
+          var m = month(),
+            gid = String(b.dataset.id),
+            its = m.items.filter(function (i) {
+              return i.t === "meta" && String(i.gid) === gid;
+            });
+          if (!its.length) return;
+          var tot = its.reduce(function (a, i) {
+            return a + i.v;
+          }, 0);
+          var g = S.goals.find(function (x) {
+            return String(x.id) === gid;
+          });
+          if (
+            !confirm(
+              "Desfazer " +
+                brl(tot) +
+                " guardado em " +
+                (g ? g.name : "meta") +
+                " neste ciclo?",
+            )
+          )
+            return;
+          if (g) g.saved = Math.max(0, g.saved - tot);
+          m.items = m.items.filter(function (i) {
+            return !(i.t === "meta" && String(i.gid) === gid);
           });
           save();
           render();
