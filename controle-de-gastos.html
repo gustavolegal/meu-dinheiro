@@ -4620,6 +4620,28 @@
           var nx = new Date(y, mo + 1, 1);
           if (!S.months[key(cur)] && S.months[key(nx)]) cur = nx;
         }
+        /* Ciclo em que hoje cai, pra detectar a virada do dia do pagamento com
+           a aba aberta (um gasto das 00:03 caía no ciclo de ontem). */
+        function cicloDeHoje() {          var t = new Date(),
+            y = t.getFullYear(),
+            mo = t.getMonth();
+          if (t.getDate() < pd()) mo--;
+          return new Date(y, mo, 1);
+        }
+        var cicloHoje = cicloDeHoje();
+        function viraCiclo() {
+          var h = cicloDeHoje();
+          if (key(h) === key(cicloHoje)) return;
+          /* só pula pro ciclo novo se você não estava navegando em outro */
+          if (key(cur) === key(cicloHoje)) {
+            var velho = key(cur);
+            cur = h;
+            limpaRascunho(velho);
+          }
+          cicloHoje = h;
+          render();
+        }
+        window.addEventListener("focus", viraCiclo);
         function rng(b) {
           var f = function (d, yr) {
             var o = { day: "numeric", month: "short" };
@@ -4639,6 +4661,19 @@
              vazio e um save() aqui apagaria o banco. */
           ready = false,
           timer = null;
+        /* Tem lançamento de verdade? Um estado vazio (aparelho novo sem dados)
+           não pode ganhar do banco só porque tem savedAt mais novo — era assim
+           que uma aba aberta sem servidor apagava tudo. */
+        function temDados(o) {
+          if (!o || !o.months) return false;
+          if (o.goals && o.goals.length) return true;
+          if (o.invests && o.invests.length) return true;
+          if (o.debts && o.debts.length) return true;
+          return Object.keys(o.months).some(function (k) {
+            var m = o.months[k];
+            return m && ((m.items && m.items.length) || Number(m.salary));
+          });
+        }
         function status(t) {
           var e = document.getElementById("sync");
           if (!e) return;
@@ -4682,11 +4717,16 @@
           if (!srv || !timer) return;
           clearTimeout(timer);
           timer = null;
+          var corpo = JSON.stringify(ser());
+          /* keepalive do Chrome recusa corpo grande (> 64 KB, ~1 ano de
+             lançamentos): nesse caso fica só no localStorage e sobe no
+             próximo carregamento. */
+          if (corpo.length > 60000) return;
           try {
             fetch("/api/dados", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(ser()),
+              body: corpo,
               keepalive: true,
             });
           } catch (e) {}
@@ -4694,6 +4734,7 @@
         window.addEventListener("pagehide", flush);
         document.addEventListener("visibilitychange", function () {
           if (document.visibilityState === "hidden") flush();
+          else viraCiclo();
         });
         function push() {
           fetch("/api/dados", {
@@ -4732,8 +4773,22 @@
           if ((i.t === "var" || i.t === "inc") && i.id > 1e12) return i.id;
           return 0;
         }
+        /* Dinheiro digitado por gente: "49,90" e "1.234,56" valem, "49.90"
+           também. Sem isso o parseFloat corta os centavos de "49,90". */
+        function num(x) {
+          x = String(x).trim().replace(/\s/g, "").replace(/R\$/g, "");
+          if (/^\d{1,3}(\.\d{3})+$/.test(x)) x = x.replace(/\./g, "");
+          else if (x.indexOf(",") > -1)
+            x = x.replace(/\./g, "").replace(",", ".");
+          return parseFloat(x);
+        }
+        /* Centavos: evita o "-R$ 0,00" em vermelho com "sobra negativa". */
+        function r2(x) {
+          return Math.round((Number(x) || 0) * 100) / 100;
+        }
         /* Quando o gasto entrou no app, no formato "12 de out 14:32". */
         function when(ts) {
+
           if (!ts) return "";
           var d = new Date(ts);
           return (
@@ -4816,7 +4871,8 @@
                     id: Date.now() + Math.random(),
                     t: "fixed",
                     n: i.n,
-                    v: i.v,
+                    /* valor que você mudou "só neste ciclo" não vira o fixo */
+                    v: i.base != null ? i.base : i.v,
                     c: i.c,
                     auto: true,
                   });
@@ -4826,6 +4882,14 @@
             S.months[k] = m;
           }
           return S.months[k];
+        }
+        /* Ao sair de um ciclo, o rascunho dele é jogado fora: foi gerado com a
+           cópia daquele momento, então fixo/salário lançado depois (e o gasto
+           lançado no próprio rascunho) não aparece ao voltar — month() recria
+           do zero. Sem isso, fixo novo ficava de fora do ciclo seguinte. */
+        function limpaRascunho(k) {
+          var m = k !== key(cur) ? S.months[k] : null;
+          if (m && m.draft) delete S.months[k];
         }
         function sum(m, t) {
           return m.items
@@ -4840,7 +4904,7 @@
         function repTot() {
           var t = 0;
           document.querySelectorAll("#rep input:checked").forEach(function (c) {
-            t += parseFloat(c.dataset.v) || 0;
+            t += num(c.dataset.v) || 0;
           });
           var el = $("reptot");
           if (el) el.textContent = brl(t);
@@ -4888,7 +4952,7 @@
               }, 0),
             mtForecast = Math.max(mt, mtPlan),
             metaDue = Math.max(0, mtForecast - mt),
-            left = ic - fx - vr - mtForecast - dv;
+            left = r2(ic - fx - vr - mtForecast - dv);
           var paidFix = m.items
               .filter(function (i) {
                 return (i.t === "fixed" || i.t === "var") && i.p;
@@ -4897,7 +4961,7 @@
                 return a + b.v;
               }, 0),
             startBal = Number(m.start) || 0,
-            realLeft = startBal + ic - paidFix - mt - dv,
+            realLeft = r2(startBal + ic - paidFix - mt - dv),
             falta = Math.max(0, fx + vr - paidFix);
           var paidOf = function (t) {
             return m.items
@@ -4961,7 +5025,7 @@
             eb.style.color = c;
             eb.textContent = on ? segment.dataset.label : ebBase;
             el.style.color = c;
-            bigNum(on ? parseFloat(segment.dataset.v) || 0 : left);
+            bigNum(on ? num(segment.dataset.v) || 0 : left);
           };
           $("bar")
             .querySelectorAll(".bar-segment")
@@ -5123,6 +5187,7 @@
                   sum(mm, "div");
               }
             });
+          cum = r2(cum);
           st +=
             '<div><span>Acumulado até este ciclo</span><b class="' +
             (cum >= 0 ? "pos" : "neg") +
@@ -5281,11 +5346,21 @@
                   0,
                   (Number(d.total) || 0) - (Number(d.paid) || 0),
                 ),
-                parcela =
-                  Number(d.monthly) > 0
+                /* o que já saiu desta dívida NESTE ciclo é o que precisa ser
+                   repassado; depois de quitada o saldo zera e a linha sumiria
+                   mesmo com o dinheiro tendo saído. */
+                pago = 0;
+              m.items.forEach(function (i) {
+                if (i.t === "div" && String(i.did) === String(d.id)) pago += i.v;
+              });
+              pago = r2(pago);
+              var parcela =
+                pago > 0.005
+                  ? pago
+                  : Number(d.monthly) > 0
                     ? Math.min(Number(d.monthly), falta)
                     : falta;
-              if (falta > 0.005)
+              if (parcela > 0.005)
                 repParcelas.push(repRow("d:" + d.id, d.name + " (parcela)", parcela));
             });
             repEl.innerHTML =
@@ -6120,12 +6195,14 @@
           $("hist").innerHTML = ks
             .map(function (k) {
               var m = S.months[k],
-                l =
+                l = r2(
                   inc(m) -
-                  sum(m, "fixed") -
-                  sum(m, "var") -
-                  sum(m, "meta") -
-                  sum(m, "div"),
+                    sum(m, "fixed") -
+                    sum(m, "var") -
+                    sum(m, "meta") -
+                    sum(m, "inv") -
+                    sum(m, "div"),
+                ),
                 p = k.split("-"),
                 d = new Date(+p[0], +p[1] - 1, 1);
               return (
@@ -6144,16 +6221,24 @@
             })
             .join("");
         }
+        var ultimaCat = "";
+        try {
+          ultimaCat = localStorage.getItem(KEY + "-cat") || "";
+        } catch (e) {}
         document.querySelectorAll("form[data-t] select").forEach(function (s) {
           s.innerHTML = CATS.map(function (c) {
             return "<option>" + c + "</option>";
           }).join("");
+          /* lembra a última categoria usada: o select vinha em "Moradia" e um
+             lanche virava Moradia sem querer */
+          if (ultimaCat && CATS.indexOf(ultimaCat) > -1) s.value = ultimaCat;
         });
         document.querySelectorAll("form[data-t]").forEach(function (f) {
           f.addEventListener("submit", function (e) {
             e.preventDefault();
             var i = f.querySelectorAll("input"),
-              v = parseFloat(i[1].value);
+              v = num(i[1].value),
+              sel = f.querySelector("select");
             if (!i[0].value.trim() || !(v >= 0)) return;
             month().items.push({
               id: Date.now() + Math.random(),
@@ -6161,11 +6246,16 @@
               t: f.dataset.t,
               n: i[0].value.trim(),
               v: v,
-              c: f.querySelector("select").value,
+              c: sel.value,
               auto: false,
             });
+            ultimaCat = sel.value;
+            try {
+              localStorage.setItem(KEY + "-cat", ultimaCat);
+            } catch (e2) {}
             save();
             f.reset();
+            if (ultimaCat && CATS.indexOf(ultimaCat) > -1) sel.value = ultimaCat;
             render();
             i[0].focus();
           });
@@ -6194,7 +6284,11 @@
             var g = S.goals.find(function (x) {
               return x.id === it.gid;
             });
-            if (g) g.saved = Math.max(0, g.saved - it.v);
+            if (g) {
+              g.saved = Math.max(0, g.saved - it.v);
+              /* tirou dinheiro da meta: ela volta a ficar em aberto */
+              g.completed = g.saved >= g.target;
+            }
           }
           if (it.t === "inv") {
             var iv = S.invests.find(function (x) {
@@ -6243,7 +6337,12 @@
             )
           )
             return;
-          if (g) g.saved = Math.max(0, g.saved - tot);
+          if (g) {
+            g.saved = Math.max(0, g.saved - tot);
+            /* desfez o guardado: a meta reabre em vez de ficar travada como
+               concluída */
+            g.completed = g.saved >= g.target;
+          }
           m.items = m.items.filter(function (i) {
             return !(i.t === "meta" && String(i.gid) === gid);
           });
@@ -6322,10 +6421,11 @@
           });
           if (!it) return;
           if (cls === "ed") {
-            var v = parseFloat(
-              prompt(it.n + ": novo valor só deste ciclo (R$):", it.v),
-            );
+            var v = num(prompt(it.n + ": novo valor só deste ciclo (R$):", it.v));
             if (v >= 0) {
+              /* guarda o valor original: este ciclo vale o novo, os próximos
+                 continuam com o de sempre */
+              if (it.base == null) it.base = it.v;
               it.v = v;
               save();
               render();
@@ -6345,8 +6445,13 @@
           Object.keys(S.months).forEach(function (x) {
             if (x > k)
               S.months[x].items = S.months[x].items.filter(function (i) {
+                /* só a cópia automática e ainda não paga: o fixo lançado à mão
+                   (ou já pago) com o mesmo nome não é a mesma conta. */
                 return !(
-                  i.t === "fixed" && i.n.toLowerCase() === it.n.toLowerCase()
+                  i.t === "fixed" &&
+                  i.auto &&
+                  !i.p &&
+                  i.n.toLowerCase() === it.n.toLowerCase()
                 );
               });
           });
@@ -6356,7 +6461,7 @@
         $("iform").addEventListener("submit", function (e) {
           e.preventDefault();
           var i = this.querySelectorAll("input"),
-            v = parseFloat(i[1].value);
+            v = num(i[1].value);
           if (!(v > 0)) return;
           var sel = this.querySelector("select"),
             tp = sel ? sel.value : "Comissão";
@@ -6379,8 +6484,8 @@
         $("dform").addEventListener("submit", function (e) {
           e.preventDefault();
           var i = this.querySelectorAll("input"),
-            t = parseFloat(i[1].value),
-            mo = parseFloat(i[2].value) || 0;
+            t = num(i[1].value),
+            mo = num(i[2].value) || 0;
           if (!i[0].value.trim() || !(t > 0)) return;
           S.debts.push({
             id: Date.now() + Math.random(),
@@ -6403,7 +6508,7 @@
           if (b.dataset.d === "pay") {
             var rem = d.total - d.paid,
               inp = b.parentNode.querySelector(".dv"),
-              v = parseFloat(inp ? inp.value : "");
+              v = num(inp ? inp.value : "");
             if (!(v > 0)) return;
             v = Math.min(v, rem);
             var mm = month(),
@@ -6442,25 +6547,29 @@
               return x !== d;
             });
             // sem isso os pagamentos (t:"div") ficam órfãos e continuam
-            // contando no ciclo, como se a dívida ainda existisse.
-            Object.keys(S.months).forEach(function (k) {
-              var mm = S.months[k];
+            // contando no ciclo, como se a dívida ainda existisse. Nos ciclos
+            // que já fecharam ninguém apaga nada: o dinheiro saiu de verdade
+            // e o fechamento daquele mês não pode mudar depois.
+            var hj = key(cur);
+            Object.keys(S.months).forEach(function (kk) {
+              if (kk < hj) return;
+              var mm = S.months[kk];
               if (!mm || !mm.items) return;
               mm.items = mm.items.filter(function (i) {
                 return !(i.t === "div" && String(i.did) === String(d.id));
               });
             });
           } else {
-            var t = parseFloat(
+            var t = num(
                 prompt("Quanto você deve no total (R$):", d.total),
               ),
-              mo = parseFloat(
+              mo = num(
                 prompt(
                   "Parcela por ciclo (R$, 0 se não tiver):",
                   d.monthly || 0,
                 ),
               ),
-              pg = parseFloat(prompt("Quanto já pagou antes (R$):", d.paid));
+              pg = num(prompt("Quanto já pagou antes (R$):", d.paid));
             if (t > 0) d.total = t;
             if (mo >= 0) d.monthly = mo;
             if (pg >= 0) d.paid = pg;
@@ -6488,8 +6597,8 @@
         $("gform").addEventListener("submit", function (e) {
           e.preventDefault();
           var i = this.querySelectorAll("input"),
-            t = parseFloat(i[1].value),
-            mo = parseFloat(i[2].value);
+            t = num(i[1].value),
+            mo = num(i[2].value);
           if (!i[0].value.trim() || !(t > 0) || !(mo > 0)) return;
           S.goals.push({
             id: Date.now() + Math.random(),
@@ -6513,7 +6622,7 @@
           if (b.dataset.g === "add") {
             var rem = g.target - g.saved,
               inp = b.parentNode.querySelector(".gv"),
-              v = parseFloat(inp ? inp.value : "");
+              v = num(inp ? inp.value : "");
             if (!(v > 0)) return;
             v = Math.min(v, rem);
             var mm = month(),
@@ -6554,14 +6663,17 @@
               return x !== g;
             });
           } else {
-            var t = parseFloat(prompt("Valor total da meta (R$):", g.target)),
-              mo = parseFloat(
+            var t = num(prompt("Valor total da meta (R$):", g.target)),
+              mo = num(
                 prompt("Quanto guardar por mês (R$):", g.monthly),
               ),
-              sv = parseFloat(prompt("Quanto já tem guardado (R$):", g.saved));
+              sv = num(prompt("Quanto já tem guardado (R$):", g.saved));
             if (t > 0) g.target = t;
             if (mo > 0) g.monthly = mo;
-            if (sv >= 0) g.saved = sv;
+            if (sv >= 0) {
+              g.saved = sv;
+              g.completed = g.saved >= g.target;
+            }
           }
           save();
           render();
@@ -6569,7 +6681,7 @@
         $("ivform").addEventListener("submit", function (e) {
           e.preventDefault();
           var i = this.querySelectorAll("input"),
-            mo = parseFloat(i[1].value);
+            mo = num(i[1].value);
           if (!i[0].value.trim()) return;
           S.invests.push({
             id: Date.now() + Math.random(),
@@ -6594,7 +6706,7 @@
             mm = month();
           if (acao === "add") {
             var inp = b.parentNode.querySelector(".gv"),
-              v = parseFloat(inp ? inp.value : "");
+              v = num(inp ? inp.value : "");
             if (!(v > 0)) return;
             v = Math.round(v * 100) / 100;
             var l =
@@ -6625,7 +6737,7 @@
             x.invested =
               Math.round(((Number(x.invested) || 0) + v) * 100) / 100;
           } else if (acao === "out") {
-            var ov = parseFloat(
+            var ov = num(
               String(
                 prompt("Quanto você tirou de " + x.name + " (R$):", ""),
               ).replace(",", "."),
@@ -6666,7 +6778,7 @@
             });
           } else {
             var nm = prompt("Nome do investimento:", x.name),
-              mo = parseFloat(
+              mo = num(
                 String(
                   prompt(
                     "Quanto investir por ciclo (deixe vazio pra nenhum):",
@@ -6713,17 +6825,46 @@
           if (!f) return;
           var r = new FileReader();
           r.onload = function () {
+            var d;
             try {
-              var d = JSON.parse(r.result);
-              if (!d.months) throw 0;
-              if (!confirm("Substituir os dados atuais pelo backup?")) return;
-              S = d;
-              if (!S.goals) S.goals = [];
-              save();
-              render();
+              d = JSON.parse(r.result);
+              if (!d || typeof d !== "object" || !d.months) throw 0;
             } catch (e) {
               alert("Arquivo de backup inválido.");
+              return;
             }
+            if (!confirm("Substituir os dados atuais pelo backup?")) return;
+            /* Normaliza ANTES de trocar: backup antigo/incompleto (mês sem
+               items, listas faltando) quebrava o app e levava os dados atuais
+               junto. Se o render não sobreviver, o estado antigo volta. */
+            var antes = S;
+            try {
+              S = d;
+              if (!S.months) S.months = {};
+              if (!S.goals) S.goals = [];
+              if (!S.invests) S.invests = [];
+              if (!S.debts) S.debts = [];
+              Object.keys(S.months).forEach(function (kk) {
+                var mm = S.months[kk];
+                if (!mm || typeof mm !== "object") {
+                  S.months[kk] = { items: [], rep: [] };
+                  return;
+                }
+                if (!Array.isArray(mm.items)) mm.items = [];
+                if (!Array.isArray(mm.rep)) mm.rep = [];
+                if (typeof mm.salary !== "number")
+                  mm.salary = Number(mm.salary) || 0;
+              });
+              migrate();
+              render();
+            } catch (e) {
+              S = antes;
+              render();
+              alert("Arquivo de backup inválido.");
+              return;
+            }
+            save();
+            status("Backup importado ✓");
           };
           r.readAsText(f);
           this.value = "";
@@ -6774,14 +6915,19 @@
         };
         $("pdbtn").onclick = function () {
           var v = parseInt($("pday").value, 10);
-          if (v >= 1 && v <= 28) {
-            S.payDay = v;
-            save();
-            render();
+          if (!(v >= 1 && v <= 28)) {
+            alert(
+              "O dia do pagamento precisa ficar entre 1 e 28: o ciclo tem que caber em todos os meses.",
+            );
+            $("pday").value = pd();
+            return;
           }
+          S.payDay = v;
+          save();
+          render();
         };
         $("salbtn").onclick = function () {
-          var v = parseFloat($("sal").value) || 0,
+          var v = num($("sal").value) || 0,
             k = key(cur);
           month().salary = v;
           month().salaryAuto = false;
@@ -6872,7 +7018,9 @@
           v0 = "resumo";
         setView(v0);
         $("today").onclick = function () {
+          var velho = key(cur);
           initCur();
+          limpaRascunho(velho);
           calVista = "ciclo";
           calM = new Date();
           cycleFlash(0);
@@ -6882,19 +7030,25 @@
           var r = e.target.closest("[data-h]");
           if (!r) return;
           var q = r.dataset.h.split("-");
+          var velho = key(cur);
           cur = new Date(+q[0], +q[1] - 1, 1);
+          limpaRascunho(velho);
           setView("resumo");
           render();
           if (typeof window !== "undefined" && window.scrollTo)
             window.scrollTo(0, 0);
         });
         $("prev").onclick = function () {
+          var velho = key(cur);
           cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1);
+          limpaRascunho(velho);
           cycleFlash(-1);
           render();
         };
         $("next").onclick = function () {
+          var velho = key(cur);
           cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+          limpaRascunho(velho);
           cycleFlash(1);
           render();
         };
@@ -8133,7 +8287,7 @@
             } catch (e) {
               return;
             }
-            if (!o || !o.months) return;
+            if (!o || !o.months || !temDados(o)) return;
             if (Number(o.savedAt || 0) <= Number(S.savedAt || 0)) return;
             S = o;
             if (!S.goals) S.goals = [];
@@ -8154,7 +8308,10 @@
               /* Se o que está no navegador é mais novo que o banco (ex.: você
                  lançou algo enquanto o servidor estava fora), manda o local
                  para o banco em vez de deixar o banco apagar em cima. */
-              if (Number(S.savedAt || 0) > Number(d.savedAt || 0)) {
+              if (
+                Number(S.savedAt || 0) > Number(d.savedAt || 0) &&
+                temDados(S)
+              ) {
                 migrate();
                 local();
                 restoreCur();
@@ -8179,10 +8336,15 @@
             }
           })
           .catch(function () {
+            /* Sem servidor: o fechamento automático do ciclo não pode gravar
+               um estado vazio por cima do banco — o save só é liberado se já
+               existe algo salvo neste navegador. */
+            ready = temDados(S);
             status(
-              "Modo navegador: dados só neste navegador. Abra pelo server.js para usar o banco de dados.",
+              ready
+                ? "Modo navegador: dados só neste navegador. Abra pelo server.js para usar o banco de dados."
+                : "Sem resposta do servidor e nada salvo neste navegador ainda. Abra pelo server.js — e não lance nada aqui, pra não gravar um ciclo vazio por cima do banco.",
             );
-            ready = true;
             render();
           });
       })();

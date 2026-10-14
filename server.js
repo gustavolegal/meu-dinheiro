@@ -14,11 +14,14 @@ const REDE = process.argv.includes("--rede");
 const DB = path.join(__dirname, "gastos.db");
 const PAGINA = path.join(__dirname, "controle-de-gastos.html");
 
-// backup diário do banco
+// backup diário do banco (data local: às 22h ainda é o dia de hoje, não o de amanhã)
 if (fs.existsSync(DB)) {
   const pasta = path.join(__dirname, "backups");
   fs.mkdirSync(pasta, { recursive: true });
-  const destino = path.join(pasta, `gastos-${new Date().toISOString().slice(0, 10)}.db`);
+  const hoje = new Date();
+  const dois = (n) => String(n).padStart(2, "0");
+  const dia = `${hoje.getFullYear()}-${dois(hoje.getMonth() + 1)}-${dois(hoje.getDate())}`;
+  const destino = path.join(pasta, `gastos-${dia}.db`);
   if (!fs.existsSync(destino)) fs.copyFileSync(DB, destino);
 }
 
@@ -37,23 +40,49 @@ function responder(res, codigo, corpo = "", tipo = "application/json") {
   res.end(corpo);
 }
 
+const LIMITE_CORPO = 5 * 1024 * 1024; // 5 MB (o app manda ~60 KB)
+
 const servidor = http.createServer((req, res) => {
-  if (req.method === "GET" && req.url === "/api/dados") {
+  const rota = (req.url || "").split("?")[0]; // ?v=2 não pode virar 404
+  if ((req.method === "GET" || req.method === "HEAD") && rota === "/api/dados") {
     const r = ler.get();
     return responder(res, 200, r ? r.conteudo : "{}");
   }
-  if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
+  if ((req.method === "GET" || req.method === "HEAD") && (rota === "/" || rota === "/index.html")) {
     return responder(res, 200, fs.readFileSync(PAGINA), "text/html; charset=utf-8");
   }
-  if (req.method === "PUT" && req.url === "/api/dados") {
-    let corpo = "";
-    req.on("data", (c) => (corpo += c));
+  if (req.method === "PUT" && rota === "/api/dados") {
+    const partes = [];
+    let tamanho = 0;
+    req.on("data", (c) => {
+      tamanho += c.length;
+      if (tamanho > LIMITE_CORPO) {
+        responder(res, 413);
+        req.destroy();
+        return;
+      }
+      partes.push(c);
+    });
     req.on("end", () => {
-      try { JSON.parse(corpo); } catch { return responder(res, 400); }
+      // Buffer.concat + utf8: somando os pedaços com "+" um acento partido
+      // entre dois pacotes virava "P��o". E o corpo precisa ser um objeto.
+      const corpo = Buffer.concat(partes).toString("utf8");
+      let dados;
+      try {
+        dados = JSON.parse(corpo);
+      } catch {
+        return responder(res, 400);
+      }
+      if (typeof dados !== "object" || dados === null || Array.isArray(dados))
+        return responder(res, 400);
       gravar.run(corpo);
       responder(res, 200, "{}");
     });
     return;
+  }
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, { Allow: "GET, HEAD, PUT, OPTIONS" });
+    return res.end();
   }
   responder(res, 404);
 });
