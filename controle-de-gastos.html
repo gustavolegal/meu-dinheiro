@@ -4996,8 +4996,9 @@
               ready = true;
               if (remoto && tRemoto === tLocal) {
                 /* já é o mesmo documento (ex.: PUT de keepalive que não deu pra
-                   confirmar) */
+                   confirmar); fixa a base pra próxima junção saber o que mudou */
                 marcaSinc(tRemoto);
+                marcaBase(remoto);
                 if (!sil) status("Tudo sincronizado ✓");
                 return;
               }
