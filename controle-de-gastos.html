@@ -4754,7 +4754,10 @@
         window.addEventListener("pagehide", flush);
         document.addEventListener("visibilitychange", function () {
           if (document.visibilityState === "hidden") flush();
-          else viraCiclo();
+          else {
+            viraCiclo();
+            ivSync();
+          }
         });
         function push() {
           fetch("/api/dados", {
@@ -5733,6 +5736,137 @@
                 ? '<p class="empty">Nenhuma meta encontrada. Ajuste a busca ou o filtro.</p>'
                 : '<p class="empty">Você ainda não criou metas. Use “Criar meta” para adicionar a primeira.</p>');
         }
+        /* Cotação automática. O aporte guarda o DIA em que entrou, mas pra
+           saber quanto ele virou hoje o app precisa do preço daquele dia:
+           baixa a série diária da AwesomeAPI (grátis, sem chave, manda CORS) e
+           guarda em S.px[par][dia] = preço. O nome do investimento diz o ativo
+           ("bitcoin" -> BTC-BRL); o que não casa com a tabela fica no valor
+           digitado na mão (botão "Valor de hoje"). */
+        var IV_ATIVO = {
+          btc: "BTC-BRL",
+          bitcoin: "BTC-BRL",
+          eth: "ETH-BRL",
+          ethereum: "ETH-BRL",
+          ether: "ETH-BRL",
+          ltc: "LTC-BRL",
+          litecoin: "LTC-BRL",
+          xrp: "XRP-BRL",
+          ripple: "XRP-BRL",
+          doge: "DOGE-BRL",
+          dogecoin: "DOGE-BRL",
+          sol: "SOL-BRL",
+          solana: "SOL-BRL",
+          bnb: "BNB-BRL",
+          usd: "USD-BRL",
+          dolar: "USD-BRL",
+          dollar: "USD-BRL",
+          eur: "EUR-BRL",
+          euro: "EUR-BRL",
+          gbp: "GBP-BRL",
+          libra: "GBP-BRL",
+          jpy: "JPY-BRL",
+          iene: "JPY-BRL",
+          yen: "JPY-BRL",
+          chf: "CHF-BRL",
+          franco: "CHF-BRL",
+          cad: "CAD-BRL",
+          aud: "AUD-BRL",
+          cny: "CNY-BRL",
+          yuan: "CNY-BRL",
+          xau: "XAU-BRL",
+          ouro: "XAU-BRL",
+          xag: "XAG-BRL",
+          prata: "XAG-BRL",
+        };
+        function ivAtivo(x) {
+          if (x && x.tick) return String(x.tick).toUpperCase();
+          var n = String((x && x.name) || "")
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, ""),
+            t = n.split(/[^a-z0-9]+/),
+            i;
+          for (i = 0; i < t.length; i++) if (IV_ATIVO[t[i]]) return IV_ATIVO[t[i]];
+          return "";
+        }
+        function ivDia(ts) {
+          var d = new Date(ts);
+          return (
+            d.getFullYear() +
+            "-" +
+            String(d.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(d.getDate()).padStart(2, "0")
+          );
+        }
+        /* Preço do dia; se a série não tem esse dia (item antigo), pega o
+           primeiro dia que ela cobre. */
+        function ivPx(h, k) {
+          if (h[k] != null) return h[k];
+          var ks = Object.keys(h).sort(),
+            i;
+          for (i = 0; i < ks.length; i++) if (ks[i] >= k) return h[ks[i]];
+          return 0;
+        }
+        /* Quanto vale hoje: cada aporte vira "o que eu paguei x (preço de hoje
+           / preço do dia)". Resgate (valor negativo) cai na mesma conta, então
+           o rendimento é o da vida inteira do investimento. */
+        function ivVal(x) {
+          var p = ivAtivo(x);
+          if (!p || !S.px || !S.px[p]) return null;
+          var h = S.px[p],
+            ks = Object.keys(h).sort();
+          if (!ks.length) return null;
+          var hoje = h[ks[ks.length - 1]],
+            tot = 0,
+            tem = false;
+          Object.keys(S.months || {}).forEach(function (k) {
+            (((S.months[k] || {}).items) || []).forEach(function (i) {
+              if (i.t !== "inv" || String(i.iid) !== String(x.id)) return;
+              var t = i.at || (i.id > 1e12 ? i.id : 0),
+                px = t ? ivPx(h, ivDia(t)) : 0;
+              tem = true;
+              tot += px > 0 ? (Number(i.v) || 0) * (hoje / px) : Number(i.v) || 0;
+            });
+          });
+          return tem ? r2(tot) : null;
+        }
+        function ivSync(forca) {
+          if (!ready || !S || !S.months) return;
+          var ps = [];
+          S.invests.forEach(function (x) {
+            var p = ivAtivo(x);
+            if (p && ps.indexOf(p) < 0) ps.push(p);
+          });
+          if (!ps.length) return;
+          /* 10 min de folga: a aba volta pro foco toda hora. */
+          if (!forca && Date.now() - Number(S.pxAt || 0) < 6e5) return;
+          S.pxAt = Date.now();
+          if (!S.px) S.px = {};
+          ps.forEach(function (p) {
+            fetch("https://economia.awesomeapi.com.br/json/daily/" + p + "/365")
+              .then(function (r) {
+                return r.ok ? r.json() : null;
+              })
+              .then(function (j) {
+                if (!j || !j.length) return;
+                if (!S.px[p]) S.px[p] = {};
+                /* do mais velho pro mais novo: o dia que aparece duas vezes
+                   (o "agora" e o fechamento) fica com a cotação mais recente. */
+                j.slice()
+                  .sort(function (a, b) {
+                    return Number(a.timestamp) - Number(b.timestamp);
+                  })
+                  .forEach(function (q) {
+                    if (q.timestamp && Number(q.bid) > 0)
+                      S.px[p][ivDia(Number(q.timestamp) * 1000)] = Number(q.bid);
+                  });
+                save();
+                render();
+              })
+              .catch(function () {});
+          });
+        }
         /* Rendimento: "+R$ 0,07 (+1,4%)" — verde subiu, vermelho caiu. */
         function invRes(v, base) {
           var d = r2(v - base),
@@ -5771,10 +5905,17 @@
             vHoje = 0,
             temHoje = false;
           S.invests.forEach(function (x) {
-            if (x.now == null || isNaN(Number(x.now))) return;
+            var a = ivVal(x),
+              v =
+                a != null
+                  ? a
+                  : x.now == null || isNaN(Number(x.now))
+                    ? null
+                    : r2(x.now);
+            if (v == null) return;
             temHoje = true;
             vTotal += r2(x.invested);
-            vHoje += r2(x.now);
+            vHoje += v;
           });
           var box = $("inv-tot");
           if (box)
@@ -5795,22 +5936,27 @@
             .map(function (x) {
               var contrib = Math.round((cur[String(x.id)] || 0) * 100) / 100,
                 total = r2(x.invested),
-                tem = x.now != null && !isNaN(Number(x.now)),
-                agora = tem ? r2(x.now) : 0,
+                par = ivAtivo(x),
+                auto = ivVal(x),
+                tem = auto != null || (x.now != null && !isNaN(Number(x.now))),
+                agora = auto != null ? auto : tem ? r2(x.now) : 0,
+                fonte = tem
+                  ? auto == null && x.nowAt
+                    ? new Date(x.nowAt)
+                        .toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                        })
+                        .replace(/\./g, "")
+                    : par
+                  : "",
                 hoje = tem
                   ? '<div class="goal-forecast"><span>Vale hoje <b>' +
                     brl(agora) +
                     "</b></span><span>" +
                     invRes(agora, total) +
-                    (x.nowAt
-                      ? ' <span class="sub">· ' +
-                        new Date(x.nowAt)
-                          .toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                          })
-                          .replace(/\./g, "") +
-                        "</span>"
+                    (fonte
+                      ? ' <span class="sub">· ' + esc(String(fonte)) + "</span>"
                       : "") +
                     "</span></div>"
                   : "",
@@ -5849,9 +5995,13 @@
                 esc(x.name) +
                 '"><button class="p save" data-iv="add" data-id="' +
                 x.id +
-                '">Investir</button></span></label><button data-iv="now" data-id="' +
+                '">Investir</button></span></label><button data-iv="' +
+                (par ? "sync" : "now") +
+                '" data-id="' +
                 x.id +
-                '">Valor de hoje</button><details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
+                '">' +
+                (par ? "Atualizar cotação" : "Valor de hoje") +
+                '</button><details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
                 x.id +
                 '">Resgatar (tirar)</button><button data-iv="edit" data-id="' +
                 x.id +
@@ -6853,6 +7003,8 @@
               Math.round(((Number(x.invested) || 0) - ov) * 100) / 100;
             /* o resgate tira dinheiro do pote: o "vale hoje" cai junto */
             if (x.now != null) x.now = r2(x.now - ov);
+          } else if (acao === "sync") {
+            ivSync(true);
           } else if (acao === "now") {
             var nv = num(
               prompt(
@@ -8546,6 +8698,9 @@
                 : "Sem resposta do servidor e nada salvo neste navegador ainda. Abra pelo server.js — e não lance nada aqui, pra não gravar um ciclo vazio por cima do banco.",
             );
             render();
+          })
+          .then(function () {
+            ivSync();
           });
       })();
     </script>
