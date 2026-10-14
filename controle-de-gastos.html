@@ -7746,21 +7746,40 @@
           });
           return r;
         }
-        /* O período em cartaz: o ciclo, o mês ou o ano. */
+        /* Os anos que têm dado (pro zoom de "Ano"): os meses salvos mais o
+           ano de hoje. */
+        function calAnosLista() {
+          var ys = {};
+          Object.keys(S.months || {}).forEach(function (k) {
+            ys[k.slice(0, 4)] = 1;
+          });
+          ys[String(new Date().getFullYear())] = 1;
+          return Object.keys(ys)
+            .map(Number)
+            .sort(function (a, b) {
+              return a - b;
+            });
+        }
+        /* O período em cartaz, num zoom de três níveis: o ciclo (dias), o
+           ano (meses) ou o conjunto dos anos. */
         function calPer() {
           var pay = pd();
-          if (calVista === "mes") {
-            return {
-              ini: new Date(calM.getFullYear(), calM.getMonth(), 1),
-              fim: new Date(calM.getFullYear(), calM.getMonth() + 1, 0),
-              tit: calNome(calM, "mes")
-            };
-          }
-          if (calVista === "ano") {
+          if (calVista === "meses") {
             return {
               ini: new Date(calM.getFullYear(), 0, 1),
               fim: new Date(calM.getFullYear(), 11, 31),
               tit: String(calM.getFullYear())
+            };
+          }
+          if (calVista === "anos") {
+            var ys = calAnosLista();
+            return {
+              ini: new Date(ys[0], 0, 1),
+              fim: new Date(ys[ys.length - 1], 11, 31),
+              tit:
+                ys.length > 1
+                  ? ys[0] + " – " + ys[ys.length - 1]
+                  : String(ys[0])
             };
           }
           return {
@@ -7780,28 +7799,45 @@
           return (
             '<div class="cal-top"><div class="mode-seg" role="group" aria-label="Período do calendário">' +
             b("ciclo", "Ciclo", calVista === "ciclo") +
-            b("mes", "Mês", calVista === "mes") +
-            b("ano", "Ano", calVista === "ano") +
-            '</div><div class="cal-nav"><button type="button" data-cn="-1" aria-label="Período anterior">‹</button><b class="cal-tit">' +
-            calP.tit +
-            '</b><button type="button" data-cn="1" aria-label="Próximo período">›</button></div></div>'
+            b("meses", "Mês", calVista === "meses") +
+            b("anos", "Ano", calVista === "anos") +
+            '</div><div class="cal-nav">' +
+            (calVista === "anos"
+              ? '<b class="cal-tit">' + calP.tit + "</b>"
+              : '<button type="button" data-cn="-1" aria-label="Período anterior">‹</button><b class="cal-tit">' +
+                calP.tit +
+                '</b><button type="button" data-cn="1" aria-label="Próximo período">›</button>') +
+            "</div></div>"
           );
         }
         function calHead(r, cota, isNow) {
           var meses = 0,
             mMaior = "",
-            mVal = 0;
+            mVal = 0,
+            porAno = {},
+            aMaior = "",
+            aVal = 0;
           Object.keys(r.porMes).forEach(function (k) {
+            var y = k.slice(0, 4);
             if (r.porMes[k] > 0) meses++;
             if (r.porMes[k] > mVal) {
               mVal = r.porMes[k];
               mMaior = k;
             }
+            porAno[y] = (porAno[y] || 0) + r.porMes[k];
+            if (porAno[y] > aVal) {
+              aVal = porAno[y];
+              aMaior = y;
+            }
           });
-          /* No ano o "maior" é o mês mais caro; no ciclo/mês é o dia. */
+          var anos = Object.keys(porAno).length;
+          /* O "maior": no Ano o ano mais caro, no Mês o mês mais caro e no
+             Ciclo o dia. */
           var maior = "";
-          if (calVista === "ano") {
+          if (calVista === "meses") {
             if (mMaior) maior = calMesCurto(mMaior) + " (" + brl(mVal) + ")";
+          } else if (calVista === "anos") {
+            if (aMaior) maior = aMaior + " (" + brl(aVal) + ")";
           } else if (r.maxD) {
             maior =
               calNome(new Date(r.maxD + "T00:00:00"), "") +
@@ -7816,13 +7852,18 @@
               "</p></div>"
             );
           var qtd =
-            calVista === "ano"
+            calVista === "meses"
               ? meses + (meses === 1 ? " mês" : " meses")
+              : calVista === "anos"
+              ? anos + (anos === 1 ? " ano" : " anos")
               : r.dias + (r.dias === 1 ? " dia" : " dias");
           var nota = "";
-          if (calVista === "ano")
+          if (calVista === "meses")
             nota =
               "A barra de cada mês é o tamanho dele no ano — o mês mais caro fica cheio.";
+          else if (calVista === "anos")
+            nota =
+              "A barra de cada ano é o tamanho dele no total — o ano mais caro fica cheio.";
           else if (cota > 0)
             nota =
               "Anel cheio = " +
@@ -7836,7 +7877,7 @@
           else if (calVista === "ciclo")
             nota =
               "Sobra negativa neste ciclo: o anel só compara os dias entre si.";
-          else nota = "Anel cheio = o dia mais caro do mês.";
+          else nota = "Anel cheio = o dia mais caro do período.";
           return (
             '<div class="cal-head"><b class="cal-tot">' +
             brl(r.total) +
@@ -7845,9 +7886,18 @@
             qtd +
             " · média " +
             brl(
-              r.total / (calVista === "ano" ? meses || 1 : r.dias || 1)
+              r.total /
+                (calVista === "meses"
+                  ? meses || 1
+                  : calVista === "anos"
+                  ? anos || 1
+                  : r.dias || 1)
             ) +
-            (calVista === "ano" ? "/mês" : " por dia com gasto") +
+            (calVista === "meses"
+              ? "/mês"
+              : calVista === "anos"
+              ? "/ano"
+              : " por dia com gasto") +
             (maior ? " · maior: " + maior : "") +
             "</p></div>" +
             '<p class="cal-note">' +
@@ -7926,7 +7976,7 @@
           }
           return html;
         }
-        function calAno(r) {
+        function calMeses(r) {
           var mo = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
             y = calM.getFullYear(),
             vals = [],
@@ -7962,6 +8012,45 @@
               '%"></i></button>';
           }
           return html + "</div>";
+        }
+        /* A vista de cima: uma barra por ano. Clicar num ano abre os 12
+           meses dele. */
+        function calAnos(r) {
+          var porAno = {},
+            atual = String(new Date().getFullYear()),
+            mx = 0,
+            html = "";
+          Object.keys(r.porMes).forEach(function (k) {
+            porAno[k.slice(0, 4)] = (porAno[k.slice(0, 4)] || 0) + r.porMes[k];
+          });
+          var anos = calAnosLista();
+          anos.forEach(function (y) {
+            if ((porAno[y] || 0) > mx) mx = porAno[y];
+          });
+          anos.forEach(function (y) {
+            var v = porAno[y] || 0,
+              pc = v > 0 && mx > 0 ? Math.max(8, Math.round((v / mx) * 100)) : 0;
+            html +=
+              '<button type="button" class="cal-mes' +
+              (v > 0 ? "" : " vazio") +
+              (y === atual ? " is-atual" : "") +
+              '" data-ano="' +
+              y +
+              '"' +
+              (y === atual ? ' aria-current="date"' : "") +
+              ' aria-label="' +
+              y +
+              ": " +
+              (v > 0 ? brl(v) + " em variáveis" : "nada lançado") +
+              '"><span class="cal-mes-n">' +
+              y +
+              '</span><span class="cal-mes-v">' +
+              (v > 0 ? brl(v).replace(/,00$/, "") : "—") +
+              '</span><i class="cal-mes-bar" aria-hidden="true" style="width:' +
+              pc +
+              '%"></i></button>';
+          });
+          return '<div class="cal-meses">' + html + "</div>";
         }
         function calDet() {
           var el = $("cal-detail");
@@ -8017,12 +8106,18 @@
           el.innerHTML =
             calTopo() +
             calHead(r, cota, isNow) +
-            (calVista === "ano" ? calAno(r) : calDias(r, cota));
-          if (calVista === "ano") $("cal-detail").innerHTML = "";
-          else calDet();
+            (calVista === "ciclo"
+              ? calDias(r, cota)
+              : calVista === "meses"
+              ? calMeses(r)
+              : calAnos(r));
+          if (calVista === "ciclo") calDet();
+          else $("cal-detail").innerHTML = "";
         }
         document.addEventListener("click", function (e) {
-          var b = e.target.closest("[data-cv], [data-cn], [data-mes], .cal-day");
+          var b = e.target.closest(
+            "[data-cv], [data-cn], [data-ano], [data-mes], .cal-day"
+          );
           if (!b) return;
           if (b.dataset.cv) {
             if (b.dataset.cv !== "ciclo" && calVista === "ciclo")
@@ -8037,18 +8132,24 @@
               var pn = $(dir < 0 ? "prev" : "next");
               if (pn) pn.click();
             } else {
-              calM =
-                calVista === "ano"
-                  ? new Date(calM.getFullYear() + dir, calM.getMonth(), 1)
-                  : new Date(calM.getFullYear(), calM.getMonth() + dir, 1);
+              calM = new Date(calM.getFullYear() + dir, calM.getMonth(), 1);
               render();
             }
             return;
           }
+          if (b.dataset.ano) {
+            calVista = "meses";
+            calM = new Date(+b.dataset.ano, 0, 1);
+            render();
+            return;
+          }
           if (b.dataset.mes) {
-            var q = b.dataset.mes.split("-");
-            calVista = "mes";
-            calM = new Date(+q[0], +q[1] - 1, 1);
+            /* Um mês do ano → o ciclo daquele mês, na vista de dias. */
+            var q = b.dataset.mes.split("-"),
+              velho = key(cur);
+            cur = new Date(+q[0], +q[1] - 1, 1);
+            limpaRascunho(velho);
+            calVista = "ciclo";
             render();
             return;
           }
