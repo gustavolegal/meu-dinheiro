@@ -4487,6 +4487,28 @@
         </p>
         <div id="history-goals"></div>
       </section>
+
+      <section class="card" data-tab="mais" id="sv-card">
+        <h2>Servidor (celular × PC)</h2>
+        <p class="sub">
+          Onde os dados ficam guardados: o endereço do PC na sua rede. No APK do
+          celular, aponte para o IP do PC (ex.: <code>http://192.168.0.10:8000</code>)
+          e use o mesmo Wi-Fi; longe de casa o celular guarda tudo e envia
+          sozinho quando reencontrar o servidor. No site aberto pelo próprio PC
+          pode deixar vazio (usa o endereço da página).
+        </p>
+        <div class="row" style="margin-top: 10px">
+          <input
+            id="sv-in"
+            type="text"
+            inputmode="url"
+            placeholder="http://192.168.0.10:8000"
+            aria-label="Endereço do servidor"
+          />
+          <button class="p" id="sv-go" type="button">Usar</button>
+        </div>
+        <p class="sub" id="sv-est"></p>
+      </section>
     </main>
     <nav id="tabs" aria-label="Seções">
       <button data-go="resumo">Resumo</button>
@@ -4514,6 +4536,24 @@
           goalSearch = "",
           goalLeft = 0,
           barPainted = false;
+        /* Onde ficam os dados. No site aberto pelo próprio PC é o endereço de
+           onde a página veio ("" = relativo). No APK a página vem de dentro do
+           app (file://), então o endereço do servidor de casa fica guardado
+           aqui — ou vem do SV_PADRAO que o build do APK embute. */
+        var SVK = KEY + "-sv",
+          SV = "";
+        try {
+          SV = localStorage.getItem(SVK) || window.SV_PADRAO || "";
+        } catch (e) {}
+        SV = String(SV || "").replace(/\/+$/, "");
+        function api() {
+          return SV + "/api/dados";
+        }
+        /* No APK sem endereço configurado não tem com quem falar: os dados
+           ficam só no celular até você apontar o servidor (aba Mais). */
+        function temServidor() {
+          return !!SV || location.protocol !== "file:";
+        }
         cur = new Date(cur.getFullYear(), cur.getMonth(), 1);
         try {
           var raw = localStorage.getItem(KEY);
@@ -4680,7 +4720,18 @@
              fechamento do ciclo pode gravar — antes disso o estado ainda está
              vazio e um save() aqui apagaria o banco. */
           ready = false,
-          timer = null;
+          timer = null,
+          sinc = false,
+          /* savedAt que o servidor já confirmou: se o local estiver na frente,
+             tem alteração esperando pra subir. */
+          ultSinc = 0,
+          /* cópia do último estado que os dois lados tinham igual: é a
+             referência pra saber o que cada lado mudou (e o que foi apagado) */
+          base = null;
+        try {
+          ultSinc = Number(localStorage.getItem(KEY + "-sinc") || 0) || 0;
+          base = JSON.parse(localStorage.getItem(KEY + "-base") || "null");
+        } catch (e) {}
         /* Tem lançamento de verdade? Um estado vazio (aparelho novo sem dados)
            não pode ganhar do banco só porque tem savedAt mais novo — era assim
            que uma aba aberta sem servidor apagava tudo. */
@@ -4693,6 +4744,46 @@
             var m = o.months[k];
             return m && ((m.items && m.items.length) || Number(m.salary));
           });
+        }
+        function marcaSinc(v) {
+          ultSinc = Number(v) || 0;
+          try {
+            localStorage.setItem(KEY + "-sinc", String(ultSinc));
+          } catch (e) {}
+        }
+        /* Guarda o estado que acabou de ir pro servidor (ou de vir dele): é com
+           ele que a próxima junção descobre o que mudou de cada lado. Fica uma
+           cópia separada de propósito — se a base fosse o mesmo objeto do estado
+           vivo, a sua alteração mudaria a base junto e a junção acharia que
+           nada mudou aqui (foi exatamente o bug que apagava o do celular). */
+        function marcaBase(o) {
+          if (!o) {
+            base = null;
+            try {
+              localStorage.removeItem(KEY + "-base");
+            } catch (e) {}
+            return;
+          }
+          var txt = JSON.stringify(o);
+          try {
+            localStorage.setItem(KEY + "-base", txt);
+          } catch (e) {}
+          try {
+            base = JSON.parse(txt);
+          } catch (e) {
+            base = null;
+          }
+        }
+        /* Troca o estado da memória pelo que veio do banco. */
+        function carrega(o) {
+          S = o;
+          if (!S.goals) S.goals = [];
+          if (!S.invests) S.invests = [];
+          if (!S.debts) S.debts = [];
+          migrate();
+          local();
+          restoreCur();
+          render();
         }
         function status(t) {
           var e = document.getElementById("sync");
@@ -4729,12 +4820,19 @@
             status("Salvando…");
             clearTimeout(timer);
             timer = setTimeout(push, 400);
+          } else {
+            status(
+              temServidor()
+                ? "Sem servidor agora. Está salvo aqui e sobe sozinho quando ele voltar."
+                : "Dados só neste aparelho: configure o servidor na aba Mais.",
+            );
           }
         }
         /* fechar/recarregar a página no meio dos 400 ms não pode perder a
-           alteração: despacha o PUT pendente com keepalive. */
+           alteração: despacha o PUT pendente com keepalive (vale também pro
+           celular que ficou sem rede: se o servidor voltar, sobe aqui). */
         function flush() {
-          if (!srv || !timer) return;
+          if (!(timer || Number(S.savedAt || 0) > ultSinc) || !temServidor()) return;
           clearTimeout(timer);
           timer = null;
           var corpo = JSON.stringify(ser());
@@ -4743,7 +4841,7 @@
              próximo carregamento. */
           if (corpo.length > 60000) return;
           try {
-            fetch("/api/dados", {
+            fetch(api(), {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: corpo,
@@ -4757,23 +4855,229 @@
           else {
             viraCiclo();
             ivSync();
+            sincroniza();
           }
         });
-        function push() {
-          fetch("/api/dados", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(ser()),
-          })
+        /* Junta dois estados (o daqui e o do servidor) usando como referência o
+           último estado sincronizado (a "base"): campo que mudou de um lado vai
+           pro resultado, e o que foi apagado de um lado não volta. É isso que
+           faz a sincronização valer nos dois sentidos sem um apagar o outro. */
+        function juntaCampo(l, r, b) {
+          return l === b ? r : l;
+        }
+        function juntaObjeto(l, r, b) {
+          var o = {},
+            k;
+          b = b || {};
+          for (k in l) o[k] = juntaCampo(l[k], r ? r[k] : undefined, b[k]);
+          if (r)
+            for (k in r)
+              if (!(k in o))
+                o[k] = juntaCampo(l ? l[k] : undefined, r[k], b[k]);
+          return o;
+        }
+        function listaIdx(li) {
+          var m = {};
+          (li || []).forEach(function (x) {
+            if (x && x.id !== undefined) m[x.id] = x;
+          });
+          return m;
+        }
+        function semId(li) {
+          return (li || []).some(function (x) {
+            return !x || x.id === undefined;
+          });
+        }
+        /* Lista de coisas com id: itens do ciclo, metas, investimentos, dívidas. */
+        function juntaLista(l, r, b) {
+          l = l || [];
+          r = r || [];
+          b = b || [];
+          if (semId(l) || semId(r) || semId(b)) return l.length ? l : r;
+          var il = listaIdx(l),
+            ir = listaIdx(r),
+            ib = listaIdx(b),
+            out = [],
+            visto = {};
+          Object.keys(ib).forEach(function (id) {
+            /* estava na base e sumiu de um dos lados: apagado ali */
+            if (!il[id] || !ir[id]) visto[id] = 1;
+          });
+          Object.keys(il)
+            .concat(Object.keys(ir))
+            .forEach(function (id) {
+              if (visto[id]) return;
+              visto[id] = 1;
+              var L = il[id],
+                R = ir[id];
+              out.push(L && R ? juntaObjeto(L, R, ib[id]) : L || R);
+            });
+          return out.sort(function (a, c) {
+            return (Number(a.id) || 0) - (Number(c.id) || 0);
+          });
+        }
+        function juntaMeses(l, r, b) {
+          l = l || {};
+          r = r || {};
+          b = b || {};
+          var out = {},
+            keys = {};
+          [b, l, r].forEach(function (o) {
+            Object.keys(o).forEach(function (k) {
+              keys[k] = 1;
+            });
+          });
+          Object.keys(keys).forEach(function (k) {
+            var L = l[k],
+              R = r[k],
+              B = b[k];
+            /* ciclo que só existe de um lado: sumiu se o outro já tinha ele */
+            if (!L || !R) {
+              if (B) return;
+              out[k] = L || R;
+              return;
+            }
+            var m = juntaObjeto(L, R, B);
+            m.items = juntaLista(L.items, R.items, B && B.items);
+            out[k] = m;
+          });
+          return out;
+        }
+        function junta(l, r, b) {
+          b = b || {};
+          var o = juntaObjeto(l, r, b),
+            px = {},
+            p,
+            k;
+          o.months = juntaMeses(l.months, r.months, b.months);
+          o.goals = juntaLista(l.goals, r.goals, b.goals);
+          o.invests = juntaLista(l.invests, r.invests, b.invests);
+          o.debts = juntaLista(l.debts, r.debts, b.debts);
+          /* cotações: soma dos dois lados (é dado que só cresce) */
+          [l.px || {}, r.px || {}].forEach(function (fonte) {
+            for (p in fonte) {
+              px[p] = px[p] || {};
+              for (k in fonte[p]) if (!(k in px[p])) px[p][k] = fonte[p][k];
+            }
+          });
+          o.px = px;
+          return o;
+        }
+        function adota(o) {
+          carrega(o);
+          marcaSinc(o.savedAt || 0);
+          marcaBase(o);
+        }
+        /* Fala com o servidor: roda no load, no foco, e de vez em quando. Se o
+           servidor está fora, nada se perde — a próxima tentativa manda tudo. */
+        function sincroniza(sil) {
+          if (sinc) return;
+          if (!temServidor()) {
+            /* celular sem servidor configurado: não tem de quem esperar nada,
+               então o que está aqui vale (fechamento do ciclo e cotação andam) */
+            ready = true;
+            status("Servidor não configurado (aba Mais → Servidor do site).");
+            return;
+          }
+          sinc = true;
+          fetch(api(), { cache: "no-store" })
             .then(function (r) {
-              status(
-                r.ok
-                  ? "Salvo no banco de dados ✓"
-                  : "Erro ao salvar no banco de dados",
-              );
+              if (!r.ok) throw 0;
+              return r.json();
+            })
+            .then(function (d) {
+              sinc = false;
+              srv = true;
+              var remoto = d && d.months && temDados(d) ? d : null,
+                tRemoto = remoto ? Number(remoto.savedAt || 0) : 0,
+                tLocal = Number(S.savedAt || 0),
+                mudouLocal = tLocal > ultSinc,
+                mudouRemoto = tRemoto > ultSinc;
+              ready = true;
+              if (remoto && tRemoto === tLocal) {
+                /* já é o mesmo documento (ex.: PUT de keepalive que não deu pra
+                   confirmar) */
+                marcaSinc(tRemoto);
+                if (!sil) status("Tudo sincronizado ✓");
+                return;
+              }
+              /* os dois mexeram desde o último encontro (ou é o primeiro, quando
+                 ainda não existe base): junta em vez de um apagar o outro */
+              if (temDados(S) && remoto && mudouLocal && mudouRemoto) {
+                /* os dois mexeram depois do último encontro: junta o que cada um
+                   fez em vez de um apagar o outro */
+                var junto = junta(S, remoto, base);
+                junto.savedAt = Date.now();
+                carrega(junto);
+                status("Juntei o que mudou no PC e no celular ✓");
+                return push();
+              }
+              if (temDados(S) && mudouLocal && (!remoto || tLocal > tRemoto)) {
+                return push();
+              }
+              if (remoto && tRemoto > tLocal) {
+                adota(remoto);
+                /* o outro aparelho mexeu: avisa mesmo quando a checagem foi
+                   silenciosa (é o que mostra o que o celular mandou) */
+                status("Dados do servidor carregados ✓");
+                return;
+              }
+              if (!remoto && temDados(S)) return push();
+              if (!sil) status("Banco de dados local conectado ✓");
             })
             .catch(function () {
-              status("Servidor fora do ar. Alterações salvas só no navegador.");
+              sinc = false;
+              srv = false;
+              /* Servidor fora do ar não trava nada: o estado que está aqui já
+                 foi lido do aparelho, então o app segue funcionando (fechamento
+                 de ciclo e cotação inclusos) e manda tudo na próxima conversa.
+                 Estado vazio nunca sobe pro banco — quem manda são os push(). */
+              ready = true;
+              if (!sil) {
+                status(
+                  temServidor()
+                    ? "Sem servidor agora. Está salvo aqui e sobe sozinho quando ele voltar."
+                    : "Servidor não configurado: os dados estão só neste aparelho.",
+                );
+                render();
+              }
+            });
+        }
+        /* Sem servidor (celular na rua) ou com alteração esperando: tenta de
+           novo. Mesmo quando está tudo certo de vez em quando dá uma olhada,
+           porque o outro aparelho pode ter mexido (o PC vê o que o celular
+           mandou sem precisar recarregar a página). */
+        setInterval(function () {
+          if (!sinc) sincroniza(true);
+        }, 20000);
+        window.addEventListener("online", function () {
+          sincroniza();
+        });
+        window.addEventListener("focus", function () {
+          sincroniza();
+        });
+        function push() {
+          var o = ser(),
+            corpo = JSON.stringify(o);
+          status("Enviando para o site…");
+          fetch(api(), {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: corpo,
+          })
+            .then(function (r) {
+              if (!r.ok) throw 0;
+              marcaSinc(o.savedAt);
+              /* o que foi enviado de verdade (e não o que estiver na memória
+                 agora) vira a base da próxima junção */
+              marcaBase(JSON.parse(corpo));
+              status("Enviado para o site ✓");
+            })
+            .catch(function () {
+              srv = false;
+              status(
+                "Sem servidor agora. Está salvo aqui e vai sozinho quando ele voltar.",
+              );
             });
         }
         function key(d) {
@@ -8680,6 +8984,35 @@
         setInterval(applyTheme, 60000);
         setInterval(rotateScene, 600000);
         applyTheme();
+        /* Endereço do servidor: o APK do celular precisa dele; no PC que serve
+           a página o certo é o endereço de onde ela veio. */
+        (function () {
+          var inp = $("sv-in"),
+            est = $("sv-est");
+          if (!inp) return;
+          inp.value =
+            SV || (location.protocol === "file:" ? "" : location.origin);
+          var diz = function () {
+            est.textContent = SV
+              ? "Salvando em " + SV
+              : location.protocol === "file:"
+                ? "Nenhum servidor configurado: os dados ficam só neste celular."
+                : "Usando o endereço desta página (" + location.origin + ").";
+          };
+          $("sv-go").onclick = function () {
+            var v = inp.value.trim();
+            if (v && !/^https?:\/\//i.test(v)) v = "http://" + v;
+            v = v.replace(/\/+$/, "");
+            try {
+              if (v) localStorage.setItem(SVK, v);
+              else localStorage.removeItem(SVK);
+            } catch (e) {}
+            SV = v;
+            diz();
+            sincroniza();
+          };
+          diz();
+        })();
         $("reset").onclick = function () {
           if (confirm("Apagar todos os dados? Isso não pode ser desfeito.")) {
             S = { months: {}, goals: [] };
@@ -8709,67 +9042,11 @@
             }
             if (!o || !o.months || !temDados(o)) return;
             if (Number(o.savedAt || 0) <= Number(S.savedAt || 0)) return;
-            S = o;
-            if (!S.goals) S.goals = [];
-            if (!S.invests) S.invests = [];
-            if (!S.debts) S.debts = [];
-            migrate();
-            render();
+            carrega(o);
           }, 250);
         });
-        fetch("/api/dados")
-          .then(function (r) {
-            if (!r.ok) throw 0;
-            return r.json();
-          })
-          .then(function (d) {
-            srv = true;
-            if (d && d.months) {
-              /* Se o que está no navegador é mais novo que o banco (ex.: você
-                 lançou algo enquanto o servidor estava fora), manda o local
-                 para o banco em vez de deixar o banco apagar em cima. */
-              if (
-                Number(S.savedAt || 0) > Number(d.savedAt || 0) &&
-                temDados(S)
-              ) {
-                migrate();
-                local();
-                restoreCur();
-                status("Alterações locais enviadas para o banco de dados ✓");
-                push();
-                ready = true;
-                render();
-              } else {
-                S = d;
-                if (!S.goals) S.goals = [];
-                migrate();
-                local();
-                restoreCur();
-                status("Banco de dados local conectado ✓");
-                ready = true;
-                render();
-              }
-            } else {
-              status("Banco de dados local conectado ✓");
-              ready = true;
-              push();
-            }
-          })
-          .catch(function () {
-            /* Sem servidor: o fechamento automático do ciclo não pode gravar
-               um estado vazio por cima do banco — o save só é liberado se já
-               existe algo salvo neste navegador. */
-            ready = temDados(S);
-            status(
-              ready
-                ? "Modo navegador: dados só neste navegador. Abra pelo server.js para usar o banco de dados."
-                : "Sem resposta do servidor e nada salvo neste navegador ainda. Abra pelo server.js — e não lance nada aqui, pra não gravar um ciclo vazio por cima do banco.",
-            );
-            render();
-          })
-          .then(function () {
-            ivSync();
-          });
+        sincroniza();
+        ivSync();
       })();
     </script>
   </body>
