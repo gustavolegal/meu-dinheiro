@@ -5823,6 +5823,11 @@
           });
           return r;
         }
+        /* Quando o aporte entrou: preferência pro `at` (dá pra corrigir a data
+           depois), senão o id (que já é Date.now() na criação). */
+        function ivTs(i) {
+          return Number(i.at) || (i.id > 1e12 ? i.id : 0);
+        }
         /* Quanto vale hoje = quantidade x preço de agora. A quantidade é o
            x.q (você ajustou pelo que a corretora mostra) ou, se nunca ajustou,
            a soma de cada aporte dividido pelo preço DO DIA em que ele entrou —
@@ -5835,7 +5840,7 @@
           if (q == null) {
             var h = S.px[p];
             q = ivItens(x).reduce(function (a, i) {
-              var t = i.at || (i.id > 1e12 ? i.id : 0),
+              var t = ivTs(i),
                 px = t ? ivPx(h, ivDia(t)) : 0;
               return a + (px > 0 ? (Number(i.v) || 0) / px : 0);
             }, 0);
@@ -6022,7 +6027,9 @@
                   : "") +
                 '<details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
                 x.id +
-                '">Resgatar (tirar)</button><button data-iv="edit" data-id="' +
+                '">Resgatar (tirar)</button><button data-iv="dia" data-id="' +
+                x.id +
+                '">Que dia investi</button><button data-iv="edit" data-id="' +
                 x.id +
                 '">Editar</button><button class="remove" data-iv="del" data-id="' +
                 x.id +
@@ -7047,6 +7054,35 @@
               x.now = r2(nv);
               x.nowAt = Date.now();
             }
+          } else if (acao === "dia") {
+            /* o dia do aporte é o que decide o preço: quem lança depois (ou
+               pelo banco) corrige aqui e a conta passa a bater. */
+            var its = ivItens(x);
+            if (!its.length) return;
+            its.sort(function (a, b) {
+              return ivTs(a) - ivTs(b);
+            });
+            var ult = its[its.length - 1],
+              dd = new Date(ivTs(ult) || Date.now()),
+              z2 = function (n) {
+                return String(n).padStart(2, "0");
+              },
+              vl = prompt(
+                "Que dia o dinheiro entrou em " + x.name + " (DD/MM/AAAA)?",
+                z2(dd.getDate()) +
+                  "/" +
+                  z2(dd.getMonth() + 1) +
+                  "/" +
+                  dd.getFullYear(),
+              ),
+              dia = vl && vl.match(/^(\d{1,2})\D(\d{1,2})\D(\d{4})$/);
+            if (!dia) return;
+            ult.at = new Date(
+              Number(dia[3]),
+              Number(dia[2]) - 1,
+              Number(dia[1]),
+              12,
+            ).getTime();
           } else if (acao === "del") {
             if (
               !confirm(
