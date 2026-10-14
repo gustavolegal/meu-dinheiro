@@ -5808,28 +5808,45 @@
           for (i = 0; i < ks.length; i++) if (ks[i] >= k) return h[ks[i]];
           return 0;
         }
-        /* Quanto vale hoje: cada aporte vira "o que eu paguei x (preço de hoje
-           / preço do dia)". Resgate (valor negativo) cai na mesma conta, então
-           o rendimento é o da vida inteira do investimento. */
-        function ivVal(x) {
-          var p = ivAtivo(x);
-          if (!p || !S.px || !S.px[p]) return null;
-          var h = S.px[p],
-            ks = Object.keys(h).sort();
-          if (!ks.length) return null;
-          var hoje = h[ks[ks.length - 1]],
-            tot = 0,
-            tem = false;
+        /* Preço mais recente que o app baixou pro par (é o "hoje"). */
+        function ivPreco(p) {
+          var h = p && S.px ? S.px[p] : null,
+            ks = h ? Object.keys(h).sort() : [];
+          return ks.length ? Number(h[ks[ks.length - 1]]) : 0;
+        }
+        function ivItens(x) {
+          var r = [];
           Object.keys(S.months || {}).forEach(function (k) {
             (((S.months[k] || {}).items) || []).forEach(function (i) {
-              if (i.t !== "inv" || String(i.iid) !== String(x.id)) return;
-              var t = i.at || (i.id > 1e12 ? i.id : 0),
-                px = t ? ivPx(h, ivDia(t)) : 0;
-              tem = true;
-              tot += px > 0 ? (Number(i.v) || 0) * (hoje / px) : Number(i.v) || 0;
+              if (i.t === "inv" && String(i.iid) === String(x.id)) r.push(i);
             });
           });
-          return tem ? r2(tot) : null;
+          return r;
+        }
+        /* Quanto vale hoje = quantidade x preço de agora. A quantidade é o
+           x.q (você ajustou pelo que a corretora mostra) ou, se nunca ajustou,
+           a soma de cada aporte dividido pelo preço DO DIA em que ele entrou —
+           aí o rendimento é o do mercado desde o primeiro aporte. */
+        function ivVal(x) {
+          var p = ivAtivo(x),
+            preco = p ? ivPreco(p) : 0;
+          if (!preco) return null;
+          var q = x.q != null ? Number(x.q) || 0 : null;
+          if (q == null) {
+            var h = S.px[p];
+            q = ivItens(x).reduce(function (a, i) {
+              var t = i.at || (i.id > 1e12 ? i.id : 0),
+                px = t ? ivPx(h, ivDia(t)) : 0;
+              return a + (px > 0 ? (Number(i.v) || 0) / px : 0);
+            }, 0);
+          }
+          return q ? r2(q * preco) : null;
+        }
+        /* Mexeu no dinheiro (aporte/resgate): a posição anda junto, então
+           aporte não vira rendimento nem resgate vira prejuízo. */
+        function ivQ(x, v) {
+          var pr = ivPreco(ivAtivo(x));
+          if (x.q != null && pr > 0) x.q += v / pr;
         }
         function ivSync(forca) {
           if (!ready || !S || !S.months) return;
@@ -5995,13 +6012,15 @@
                 esc(x.name) +
                 '"><button class="p save" data-iv="add" data-id="' +
                 x.id +
-                '">Investir</button></span></label><button data-iv="' +
-                (par ? "sync" : "now") +
-                '" data-id="' +
+                '">Investir</button></span></label><button data-iv="now" data-id="' +
                 x.id +
                 '">' +
-                (par ? "Atualizar cotação" : "Valor de hoje") +
-                '</button><details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
+                (par ? "Ajustar valor" : "Valor de hoje") +
+                "</button>" +
+                (par
+                  ? '<button data-iv="sync" data-id="' + x.id + '">Atualizar cotação</button>'
+                  : "") +
+                '<details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
                 x.id +
                 '">Resgatar (tirar)</button><button data-iv="edit" data-id="' +
                 x.id +
@@ -6530,6 +6549,7 @@
             if (iv) {
               iv.invested =
                 Math.round(((Number(iv.invested) || 0) - it.v) * 100) / 100;
+              if (iv.q != null) ivQ(iv, -it.v);
               if (iv.now != null) iv.now = r2(iv.now - it.v);
             }
           }
@@ -6971,7 +6991,8 @@
             });
             x.invested =
               Math.round(((Number(x.invested) || 0) + v) * 100) / 100;
-            /* aporte não é rendimento: o "vale hoje" sobe junto */
+            /* aporte não é rendimento: a posição sobe junto */
+            if (x.q != null) ivQ(x, v);
             if (x.now != null) x.now = r2(x.now + v);
           } else if (acao === "out") {
             var ov = num(
@@ -7001,20 +7022,31 @@
             });
             x.invested =
               Math.round(((Number(x.invested) || 0) - ov) * 100) / 100;
-            /* o resgate tira dinheiro do pote: o "vale hoje" cai junto */
+            /* o resgate tira dinheiro do pote */
+            if (x.q != null) ivQ(x, -ov);
             if (x.now != null) x.now = r2(x.now - ov);
           } else if (acao === "sync") {
             ivSync(true);
           } else if (acao === "now") {
-            var nv = num(
-              prompt(
-                "Quanto vale " + x.name + " hoje (R$):",
-                x.now != null ? x.now : Number(x.invested) || "",
-              ),
-            );
+            var q0 = ivVal(x),
+              at0 =
+                q0 != null
+                  ? q0
+                  : x.now != null
+                    ? x.now
+                    : Number(x.invested) || "",
+              nv = num(prompt("Quanto tem hoje em " + x.name + " (R$):", at0));
             if (isNaN(nv) || nv < 0) return;
-            x.now = r2(nv);
-            x.nowAt = Date.now();
+            var pr = ivPreco(ivAtivo(x));
+            if (pr > 0) {
+              /* o valor que você vê na corretora dividido pelo preço de agora
+                 dá a quantidade; daí pra frente o valor segue a cotação só. */
+              x.q = nv / pr;
+              x.now = null;
+            } else {
+              x.now = r2(nv);
+              x.nowAt = Date.now();
+            }
           } else if (acao === "del") {
             if (
               !confirm(
