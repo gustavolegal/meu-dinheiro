@@ -1894,6 +1894,25 @@
         gap: 4px 10px;
         font-size: 0.85rem;
       }
+      /* Rendimento de investimento: verde subiu, vermelho caiu. */
+      .up {
+        color: color-mix(in oklab, var(--ok) 78%, var(--ink));
+      }
+      .down {
+        color: color-mix(in oklab, var(--bad) 82%, var(--ink));
+      }
+      .inv-tot {
+        margin: 6px 0 12px;
+        padding: 9px 12px;
+        border: 1px dashed var(--line);
+        border-radius: var(--radius-sm);
+        color: var(--mut);
+        font-size: 0.82rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .inv-tot:empty {
+        display: none;
+      }
       .goal-forecast {
         display: flex;
         justify-content: space-between;
@@ -4402,6 +4421,7 @@
             <button class="p" type="submit">Salvar investimento</button>
           </form>
         </details>
+        <div class="inv-tot" id="inv-tot" aria-live="polite"></div>
         <div id="invests"></div>
       </section>
 
@@ -5713,9 +5733,30 @@
                 ? '<p class="empty">Nenhuma meta encontrada. Ajuste a busca ou o filtro.</p>'
                 : '<p class="empty">Você ainda não criou metas. Use “Criar meta” para adicionar a primeira.</p>');
         }
+        /* Rendimento: "+R$ 0,07 (+1,4%)" — verde subiu, vermelho caiu. */
+        function invRes(v, base) {
+          var d = r2(v - base),
+            pct = base > 0 ? Math.round((d / base) * 1000) / 10 : 0;
+          return (
+            '<b class="' +
+            (d < 0 ? "down" : d > 0 ? "up" : "") +
+            '">' +
+            (d > 0 ? "+" : "") +
+            brl(d) +
+            "</b>" +
+            (base > 0
+              ? " (" +
+                (d > 0 ? "+" : "") +
+                pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) +
+                "%)"
+              : "")
+          );
+        }
         /* Investimentos: dinheiro que sai da conta mas continua sendo seu.
            Cada aporte é um item t:"inv" do ciclo e entra no mesmo "guardado"
-           das metas, então a sobra e o caixa seguem certos sem conta extra. */
+           das metas, então a sobra e o caixa seguem certos sem conta extra.
+           O "vale hoje" (x.now) é o valor de mercado: fica FORA das contas do
+           ciclo, serve só pra ver o rendimento de verdade. */
         function invests() {
           var el = $("invests");
           if (!el) return;
@@ -5726,6 +5767,25 @@
               cur[String(i.iid)] =
                 (cur[String(i.iid)] || 0) + (Number(i.v) || 0);
           });
+          var vTotal = 0,
+            vHoje = 0,
+            temHoje = false;
+          S.invests.forEach(function (x) {
+            if (x.now == null || isNaN(Number(x.now))) return;
+            temHoje = true;
+            vTotal += r2(x.invested);
+            vHoje += r2(x.now);
+          });
+          var box = $("inv-tot");
+          if (box)
+            box.innerHTML = temHoje
+              ? "Carteira hoje: <b>" +
+                brl(r2(vHoje)) +
+                "</b> · investido " +
+                brl(r2(vTotal)) +
+                " " +
+                invRes(r2(vHoje), r2(vTotal))
+              : "";
           if (!S.invests.length) {
             el.innerHTML =
               '<p class="empty">Nenhum investimento ainda. Use “Novo investimento” pra registrar o primeiro (ex.: bitcoin).</p>';
@@ -5734,7 +5794,26 @@
           el.innerHTML = S.invests
             .map(function (x) {
               var contrib = Math.round((cur[String(x.id)] || 0) * 100) / 100,
-                total = Math.round((Number(x.invested) || 0) * 100) / 100,
+                total = r2(x.invested),
+                tem = x.now != null && !isNaN(Number(x.now)),
+                agora = tem ? r2(x.now) : 0,
+                hoje = tem
+                  ? '<div class="goal-forecast"><span>Vale hoje <b>' +
+                    brl(agora) +
+                    "</b></span><span>" +
+                    invRes(agora, total) +
+                    (x.nowAt
+                      ? ' <span class="sub">· ' +
+                        new Date(x.nowAt)
+                          .toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                          })
+                          .replace(/\./g, "") +
+                        "</span>"
+                      : "") +
+                    "</span></div>"
+                  : "",
                 ciclo =
                   Math.abs(contrib) < 0.005
                     ? "<b>Nenhum aporte neste ciclo ainda</b>"
@@ -5758,7 +5837,9 @@
                 (Number(x.monthly) > 0
                   ? "Plano: " + brl(Number(x.monthly)) + "/ciclo"
                   : "Sem aporte fixo") +
-                '</span></div><div class="goal-cycle' +
+                "</span></div>" +
+                hoje +
+                '<div class="goal-cycle' +
                 (contrib > 0 ? " paid" : "") +
                 '">' +
                 ciclo +
@@ -5768,7 +5849,9 @@
                 esc(x.name) +
                 '"><button class="p save" data-iv="add" data-id="' +
                 x.id +
-                '">Investir</button></span></label><details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
+                '">Investir</button></span></label><button data-iv="now" data-id="' +
+                x.id +
+                '">Valor de hoje</button><details class="goal-options"><summary>Opções</summary><div><button data-iv="out" data-id="' +
                 x.id +
                 '">Resgatar (tirar)</button><button data-iv="edit" data-id="' +
                 x.id +
@@ -6294,9 +6377,11 @@
             var iv = S.invests.find(function (x) {
               return String(x.id) === String(it.iid);
             });
-            if (iv)
+            if (iv) {
               iv.invested =
                 Math.round(((Number(iv.invested) || 0) - it.v) * 100) / 100;
+              if (iv.now != null) iv.now = r2(iv.now - it.v);
+            }
           }
           if (it && it.t === "div") {
             var dd = S.debts.find(function (x) {
@@ -6736,6 +6821,8 @@
             });
             x.invested =
               Math.round(((Number(x.invested) || 0) + v) * 100) / 100;
+            /* aporte não é rendimento: o "vale hoje" sobe junto */
+            if (x.now != null) x.now = r2(x.now + v);
           } else if (acao === "out") {
             var ov = num(
               String(
@@ -6764,6 +6851,18 @@
             });
             x.invested =
               Math.round(((Number(x.invested) || 0) - ov) * 100) / 100;
+            /* o resgate tira dinheiro do pote: o "vale hoje" cai junto */
+            if (x.now != null) x.now = r2(x.now - ov);
+          } else if (acao === "now") {
+            var nv = num(
+              prompt(
+                "Quanto vale " + x.name + " hoje (R$):",
+                x.now != null ? x.now : Number(x.invested) || "",
+              ),
+            );
+            if (isNaN(nv) || nv < 0) return;
+            x.now = r2(nv);
+            x.nowAt = Date.now();
           } else if (acao === "del") {
             if (
               !confirm(
