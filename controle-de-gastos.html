@@ -5485,7 +5485,7 @@
           tips(m, fx, vr, left, isNow, daysLeft);
           cats(m);
           hist();
-          charts(m, fx, vr, mtForecast, dv, ic, left);
+          charts(m, fx, vr, mtForecast, dv, ic, left, isNow, daysLeft);
         }
         function dur(n) {
           if (n < 12) return n + (n === 1 ? " mês" : " meses");
@@ -7526,11 +7526,12 @@
             "</text></svg>";
         }
         /* ---------- gastos por dia (calendário estilo Apple Fit) ----------
-           O anel de cada dia é a cota diária do ciclo (renda − fixos −
-           guardado − dívidas, dividida pelos dias do ciclo): passou disso, o
-           anel fica cheio e vermelho. Só as variáveis entram — são as compras
-           com data de verdade (conta fixa, meta e dívida não guardam o dia em
-           que foram pagas). */
+           O anel compara o gasto do dia com o que AINDA dá pra gastar por dia
+           (sobra ÷ dias que faltam, a mesma conta do "Posso gastar por dia").
+           A sobra já desconta o que foi gasto no ciclo — a média do ciclo
+           inteiro mentia no meio do mês. Só as variáveis entram — são as
+           compras com data de verdade (conta fixa, meta e dívida não guardam o
+           dia em que foram pagas). */
         var calPor = {},
           calSel = "",
           calIni = "",
@@ -7632,7 +7633,7 @@
             '</b><button type="button" data-cn="1" aria-label="Próximo período">›</button></div></div>'
           );
         }
-        function calHead(r, cota) {
+        function calHead(r, cota, isNow) {
           var meses = 0,
             mMaior = "",
             mVal = 0;
@@ -7665,14 +7666,22 @@
               ? meses + (meses === 1 ? " mês" : " meses")
               : r.dias + (r.dias === 1 ? " dia" : " dias");
           var nota = "";
-          if (cota > 0)
-            nota =
-              "Anel cheio = sua cota diária de <b>" +
-              brl(cota) +
-              "</b>. Cheio e vermelho = passou disso.";
-          else if (calVista === "ano")
+          if (calVista === "ano")
             nota =
               "A barra de cada mês é o tamanho dele no ano — o mês mais caro fica cheio.";
+          else if (cota > 0)
+            nota =
+              "Anel cheio = " +
+              (isNow
+                ? "os <b>" +
+                  brl(cota) +
+                  "</b> que ainda dá por dia até " +
+                  calNome(calP.fim, "")
+                : "os <b>" + brl(cota) + "</b> por dia do ciclo") +
+              ". Passar disso é adiantar gasto do resto do ciclo.";
+          else if (calVista === "ciclo")
+            nota =
+              "Sobra negativa neste ciclo: o anel só compara os dias entre si.";
           else nota = "Anel cheio = o dia mais caro do mês.";
           return (
             '<div class="cal-head"><b class="cal-tot">' +
@@ -7684,7 +7693,7 @@
             brl(
               r.total / (calVista === "ano" ? meses || 1 : r.dias || 1)
             ) +
-            (calVista === "ano" ? "/mês" : "/dia") +
+            (calVista === "ano" ? "/mês" : " por dia com gasto") +
             (maior ? " · maior: " + maior : "") +
             "</p></div>" +
             '<p class="cal-note">' +
@@ -7750,7 +7759,7 @@
               (v > 0
                 ? brl(v) +
                   " em variáveis" +
-                  (over ? ", acima da cota diária" : "")
+                  (over ? ", acima do que dá por dia" : "")
                 : "nada lançado") +
               '">' +
               anel +
@@ -7831,15 +7840,15 @@
                 "</ul>"
               : '<p class="sub" style="margin:8px 0 0">Nada lançado nesse dia.</p>');
         }
-        function cal(m, fx, mt, dv, ic) {
+        /* Recebe a sobra do ciclo (já sem o que foi gasto), se o ciclo em
+           cartaz é o de agora e quantos dias faltam. */
+        function cal(left, isNow, daysLeft) {
           var el = $("cal");
           if (!el) return;
           calP = calPer();
           calIni = calKey(calP.ini);
           calFim = calKey(calP.fim);
-          var dias = Math.round((calP.fim - calP.ini) / 864e5) + 1,
-            cota =
-              calVista === "ciclo" && dias > 0 ? (ic - fx - mt - dv) / dias : 0,
+          var cota = calVista === "ciclo" && daysLeft > 0 ? left / daysLeft : 0,
             r = calSoma(calP.ini, calP.fim),
             hoje = calKey(new Date());
           calPor = r.por;
@@ -7853,7 +7862,7 @@
               : calFim;
           el.innerHTML =
             calTopo() +
-            calHead(r, cota) +
+            calHead(r, cota, isNow) +
             (calVista === "ano" ? calAno(r) : calDias(r, cota));
           if (calVista === "ano") $("cal-detail").innerHTML = "";
           else calDet();
@@ -7899,11 +7908,11 @@
           b.setAttribute("aria-pressed", "true");
           calDet();
         });
-        function charts(m, fx, vr, mt, dv, ic, left) {
+        function charts(m, fx, vr, mt, dv, ic, left, isNow, daysLeft) {
           goalWatch();
           donut(fx, vr, mt, dv, ic, left);
           spark();
-          cal(m, fx, mt, dv, ic);
+          cal(left, isNow, daysLeft);
         }
 
 /* ===================== ambiente vivo ===================== */
