@@ -770,15 +770,18 @@
         flex-direction: column;
         gap: 3px;
       }
-      .daily-metrics {
+      .daily-sub {
         display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        gap: 8px 56px;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        margin-top: 9px;
+        padding-top: 9px;
       }
-      .daily-tx {
-        flex: 0 1 auto;
-        min-width: 0;
+      .daily-sub b {
+        font-size: 0.95rem;
+        line-height: 1.2;
       }
       .daily small {
         display: block;
@@ -1134,6 +1137,10 @@
         text-transform: uppercase;
         color: var(--mut);
       }
+      .cal-wd-fds {
+        color: var(--primary);
+        font-weight: 700;
+      }
       .cal-day {
         display: grid;
         justify-items: center;
@@ -1201,9 +1208,6 @@
       .cal-day.is-today .cal-n {
         color: var(--primary);
         font-weight: 800;
-      }
-      .cal-day.cal-weekend .cal-n {
-        color: var(--primary);
       }
       .cal-v {
         font-size: 0.65rem;
@@ -5583,23 +5587,22 @@
                 })
                 .replace(/\./g, "");
             _day.className = "daily" + (_neg ? " warn" : "");
-            /* Duas métricas de bolso lado a lado, com o mesmo peso: por dia e
-               por fim de semana (o de fim de semana vivia escondido no canto,
-               em letra miúda). A linha de baixo é só contexto. */
+            /* Uma métrica manda (por dia); a do fim de semana fica em linha
+               própria com divisor, pra não grudar uma na outra. */
             _day.innerHTML =
               '<span class="daily-ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>' +
-              '<span class="daily-body"><span class="daily-metrics">' +
-              '<span class="daily-tx"><small>' +
+              '<span class="daily-body">' +
+              '<span class="daily-main"><small>' +
               (isNow ? "Posso gastar por dia" : "Sobra por dia do ciclo") +
               "</small><b>" +
               brl(Math.max(0, _perDay)) +
               "</b></span>" +
               (_wks
-                ? '<span class="daily-tx"><small>Dá por fim de semana</small><b>' +
+                ? '<span class="daily-sub"><small>Dá por fim de semana</small><b>' +
                   brl(Math.max(0, left / _wks)) +
                   "</b></span>"
                 : "") +
-              '</span><span class="daily-when">' +
+              '<span class="daily-when">' +
               (isNow ? "até " + _when : _when) +
               " · " +
               _dl +
@@ -8189,14 +8192,28 @@
           all.forEach(function (p) {
             var span = (p[2] / denom) * Math.PI * 2;
             if (span > 0.0039) {
+              var sty =
+                "fill:var(--" + p[0] + ");stroke:var(--" + p[0] +
+                ");stroke-width:" + (2 * cr).toFixed(1) + ";--i:" + si;
               var d = ringPath(a, a + span);
-              if (d)
+              if (d) {
                 segs +=
-                  '<path class="dseg" data-k="' + p[0] +
-                  '" style="fill:var(--' + p[0] + ');stroke:var(--' + p[0] +
-                  ');stroke-width:' + (2 * cr).toFixed(1) + ";--i:" + si +
+                  '<path class="dseg" data-k="' + p[0] + '" style="' + sty +
                   '" d="' + d + '"><title>' + p[1] + ": " + brl(p[2]) +
                   "</title></path>";
+              } else {
+                /* fatia fina demais pro vão: um ponto no meio do anel, no
+                   lugar da fatia (mantém o ritmo dos vãos) */
+                var am = a + span / 2,
+                  rm = (ro + ri) / 2,
+                  rd = (ro - ri) / 2 - cr;
+                segs +=
+                  '<circle class="dseg" data-k="' + p[0] + '" style="' + sty +
+                  '" cx="' + (50 + rm * Math.sin(am)).toFixed(2) +
+                  '" cy="' + (50 - rm * Math.cos(am)).toFixed(2) +
+                  '" r="' + rd.toFixed(2) + '"><title>' + p[1] + ": " +
+                  brl(p[2]) + "</title></circle>";
+              }
             }
             a += span;
             si++;
@@ -8567,9 +8584,15 @@
           var hoje = calKey(new Date()),
             html = "";
           ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"].forEach(function (
-            x
+            x,
+            xi
           ) {
-            html += '<span class="cal-wd">' + x + "</span>";
+            html +=
+              '<span class="cal-wd' +
+              (xi === 0 || xi === 6 ? " cal-wd-fds" : "") +
+              '">' +
+              x +
+              "</span>";
           });
           for (var d = new Date(sem); d <= ate; d.setDate(d.getDate() + 1)) {
             var k = calKey(d),
@@ -8609,7 +8632,6 @@
               (over ? " is-over" : "") +
               (k === hoje ? " is-today" : "") +
               (sel ? " is-sel" : "") +
-              (fds ? " cal-weekend" : "") +
               '" data-day="' +
               k +
               '" aria-pressed="' +
