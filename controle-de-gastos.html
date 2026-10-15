@@ -772,16 +772,22 @@
       }
       .daily-sub {
         display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
         justify-content: space-between;
-        gap: 12px;
+        gap: 4px 12px;
         border-top: 1px solid var(--line);
         margin-top: 9px;
         padding-top: 9px;
       }
-      .daily-sub b {
-        font-size: 0.95rem;
+      .daily .daily-sub small {
+        font-size: 0.78rem;
+      }
+      .daily .daily-sub b {
+        font-size: 1.1rem;
         line-height: 1.2;
+        font-weight: 800;
+        color: var(--ink);
       }
       .daily small {
         display: block;
