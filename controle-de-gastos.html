@@ -2205,13 +2205,13 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .cat > div {
+      .cat-bar {
         height: 8px;
         overflow: hidden;
         border-radius: 999px;
         background: var(--line-2);
       }
-      .cat i {
+      .cat-bar i {
         display: block;
         height: 100%;
         border-radius: inherit;
@@ -6788,7 +6788,7 @@
                       '" title="Toque pra definir o teto">' +
                       "<span>" +
                       esc(c) +
-                      '</span><div><i style="width:' +
+                      '</span><div class="cat-bar"><i style="width:' +
                       (teto > 0
                         ? Math.min(100, (by[c] / teto) * 100)
                         : (by[c] / tot) * 100) +
