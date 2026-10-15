@@ -803,6 +803,7 @@
         font-variant-numeric: tabular-nums;
       }
       .daily-when {
+        margin-top: 6px;
         font-size: 0.72rem;
         line-height: 1.35;
         color: var(--mut);
@@ -5603,11 +5604,6 @@
               "</small><b>" +
               brl(Math.max(0, _perDay)) +
               "</b></span>" +
-              (_wks
-                ? '<span class="daily-sub"><small>Dá por fim de semana</small><b>' +
-                  brl(Math.max(0, left / _wks)) +
-                  "</b></span>"
-                : "") +
               '<span class="daily-when">' +
               (isNow ? "até " + _when : _when) +
               " · " +
@@ -5619,7 +5615,13 @@
                   (_wks === 1 ? " fim de semana" : " fins de semana")
                 : "") +
               (_neg ? " · sobra negativa" : "") +
-              "</span></span>";
+              "</span>" +
+              (_wks
+                ? '<span class="daily-sub"><small>Dá por fim de semana</small><b>' +
+                  brl(Math.max(0, left / _wks)) +
+                  "</b></span>"
+                : "") +
+              "</span>";
           }
           /* Fechamento do ciclo: automático, sem botão. O app fecha com o que
              ele mesmo calculou e joga isso como saldo inicial do próximo ciclo,
@@ -8201,15 +8203,16 @@
               var sty =
                 "fill:var(--" + p[0] + ");stroke:var(--" + p[0] +
                 ");stroke-width:" + (2 * cr).toFixed(1) + ";--i:" + si;
-              var d = ringPath(a, a + span);
+              var d = span < 0.3 ? "" : ringPath(a, a + span);
               if (d) {
                 segs +=
                   '<path class="dseg" data-k="' + p[0] + '" style="' + sty +
                   '" d="' + d + '"><title>' + p[1] + ": " + brl(p[2]) +
                   "</title></path>";
               } else {
-                /* fatia fina demais pro vão: um ponto no meio do anel, no
-                   lugar da fatia (mantém o ritmo dos vãos) */
+                /* fatia pequena demais (menos de ~17° do anel): um ponto no
+                   meio do anel, no lugar da fatia (fatia espremida aqui
+                   sempre saía torta) */
                 var am = a + span / 2,
                   rm = (ro + ri) / 2,
                   rd = (ro - ri) / 2 - cr;
