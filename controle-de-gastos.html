@@ -774,7 +774,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: flex-end;
-        gap: 2px 20px;
+        gap: 4px 28px;
       }
       .daily-tx {
         flex: 0 1 auto;
@@ -1137,7 +1137,9 @@
       .cal-day {
         display: grid;
         justify-items: center;
+        align-content: start;
         gap: 1px;
+        min-height: 64px;
         padding: 3px 1px;
         border: 0;
         border-radius: 10px;
@@ -1187,9 +1189,6 @@
         stroke: color-mix(in oklab, var(--bad) 88%, var(--ink));
         stroke-width: 4.8;
       }
-      .cal-weekend {
-        background: color-mix(in oklab, var(--primary) 8%, transparent);
-      }
       .cal-n {
         font-size: 0.72rem;
         font-weight: 600;
@@ -1203,11 +1202,17 @@
         color: var(--primary);
         font-weight: 800;
       }
+      .cal-day.cal-weekend .cal-n {
+        color: var(--primary);
+      }
       .cal-v {
         font-size: 0.65rem;
         line-height: 1.2;
         color: var(--mut);
         white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .cal-day.is-over .cal-v {
         color: color-mix(in oklab, var(--bad) 82%, var(--ink));
@@ -8159,7 +8164,14 @@
               o1 = a1 - dO,
               i0 = a0 + dI,
               i1 = a1 - dI;
-            if (o1 - o0 <= 0 || i1 - i0 <= 0) return "";
+            if (o1 - o0 <= 0 || i1 - i0 <= 0) {
+              /* fatia fina demais pro vão: desenha sem encolher as pontas
+                 (encosta nos vizinhos, mas aparece em vez de sumir) */
+              o0 = a0;
+              o1 = a1;
+              i0 = a0;
+              i1 = a1;
+            }
             var lo = o1 - o0 > Math.PI ? 1 : 0,
               li = i1 - i0 > Math.PI ? 1 : 0;
             return (
