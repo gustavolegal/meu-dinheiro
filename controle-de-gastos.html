@@ -1187,6 +1187,9 @@
         stroke: color-mix(in oklab, var(--bad) 88%, var(--ink));
         stroke-width: 4.8;
       }
+      .cal-weekend {
+        background: color-mix(in oklab, var(--primary) 8%, transparent);
+      }
       .cal-n {
         font-size: 0.72rem;
         font-weight: 600;
@@ -1245,6 +1248,8 @@
         display: grid;
         gap: 3px;
         padding: 8px 9px;
+        align-content: start;
+        min-height: 66px;
         border: 0;
         border-radius: 12px;
         background: color-mix(in oklab, var(--line-2) 55%, transparent);
@@ -1261,15 +1266,23 @@
         outline-offset: -1.5px;
       }
       .cal-mes-n {
-        font-size: 0.68rem;
-        letter-spacing: 0.06em;
+        font-size: 0.6rem;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--mut);
+        display: block;
+        width: 100%;
       }
       .cal-mes-v {
-        font-size: 0.82rem;
-        font-weight: 700;
+        font-size: 0.52rem;
+        font-weight: 400;
         font-variant-numeric: tabular-nums;
+        color: color-mix(in oklab, var(--var) 60%, transparent);
+        display: block;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .cal-mes.vazio .cal-mes-v {
         color: var(--mut);
@@ -8434,7 +8447,7 @@
             "</div></div>"
           );
         }
-        function calHead(r, cota, isNow) {
+        function calHead(r, cota, isNow, cotaFds) {
           var meses = 0,
             mMaior = "",
             mVal = 0,
@@ -8497,7 +8510,12 @@
                   "</b> que ainda dá por dia até " +
                   calNome(calP.fim, "")
                 : "os <b>" + brl(cota) + "</b> por dia do ciclo") +
-              ". Passar disso é adiantar gasto do resto do ciclo.";
+              ". Passar disso é adiantar gasto do resto do ciclo." +
+              (cotaFds > 0
+                ? " No fim de semana, anel cheio = os <b>" +
+                  brl(cotaFds) +
+                  "</b> do fim de semana."
+                : "");
           else if (calVista === "ciclo")
             nota =
               "Sobra negativa neste ciclo: o anel só compara os dias entre si.";
@@ -8529,7 +8547,7 @@
             "</p>"
           );
         }
-        function calDias(r, cota) {
+        function calDias(r, cota, cotaFds) {
           var sem = new Date(calP.ini);
           sem.setDate(sem.getDate() - sem.getDay());
           var ate = new Date(calP.fim);
@@ -8546,13 +8564,15 @@
               dentro = k >= calIni && k <= calFim,
               g = dentro ? r.por[k] : null,
               v = g ? g.v : 0,
+              fds = d.getDay() === 0 || d.getDay() === 6,
+              lim = fds && cotaFds > 0 ? cotaFds : cota,
               pct =
-                v > 0 && cota > 0
-                  ? Math.min(1, v / cota)
+                v > 0 && lim > 0
+                  ? Math.min(1, v / lim)
                   : v > 0 && r.max > 0
                   ? Math.min(1, v / r.max)
                   : 0,
-              over = cota > 0 && v > cota + 0.005,
+              over = lim > 0 && v > lim + 0.005,
               sel = k === calSel,
               anel =
                 '<span class="cal-ring"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="cal-track" cx="18" cy="18" r="15.9"></circle>' +
@@ -8577,6 +8597,7 @@
               (over ? " is-over" : "") +
               (k === hoje ? " is-today" : "") +
               (sel ? " is-sel" : "") +
+              (fds ? " cal-weekend" : "") +
               '" data-day="' +
               k +
               '" aria-pressed="' +
@@ -8587,7 +8608,11 @@
               (v > 0
                 ? brl(v) +
                   " em variáveis" +
-                  (over ? ", acima do que dá por dia" : "")
+                  (over
+                    ? fds && cotaFds > 0
+                      ? ", acima do limite do fim de semana"
+                      : ", acima do que dá por dia"
+                    : "")
                 : "nada lançado") +
               '">' +
               anel +
@@ -8716,6 +8741,8 @@
           calIni = calKey(calP.ini);
           calFim = calKey(calP.fim);
           var cota = calVista === "ciclo" && daysLeft > 0 ? left / daysLeft : 0,
+            wks = calVista === "ciclo" && isNow ? weekends(calP.fim) : 0,
+            cotaFds = wks > 0 ? left / wks : 0,
             r = calSoma(calP.ini, calP.fim),
             hoje = calKey(new Date());
           calPor = r.por;
@@ -8729,9 +8756,9 @@
               : calFim;
           el.innerHTML =
             calTopo() +
-            calHead(r, cota, isNow) +
+            calHead(r, cota, isNow, cotaFds) +
             (calVista === "ciclo"
-              ? calDias(r, cota)
+              ? calDias(r, cota, cotaFds)
               : calVista === "meses"
               ? calMeses(r)
               : calAnos(r));
