@@ -2222,6 +2222,24 @@
       .cat b {
         font-variant-numeric: tabular-nums;
       }
+      .cat[data-c] {
+        cursor: pointer;
+      }
+      .cat-v {
+        text-align: right;
+      }
+      .cat-v small {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--mut);
+      }
+      .cat.over .cat-v b,
+      .cat.over .cat-v small {
+        color: var(--bad);
+      }
+      .cat.over .cat i {
+        background: var(--bad);
+      }
 
       /* ---- seção de temas ---- */
       .theme-grid {
@@ -4562,7 +4580,7 @@
           "Outros",
         ];
         var KEY = "meu-dinheiro-v1",
-          S = { months: {}, goals: [] },
+          S = { months: {}, goals: [], tetos: {} },
           cur = new Date(),
           goalFilter = "all",
           goalSearch = "",
@@ -4646,6 +4664,7 @@
         /* Compatibilidade: "a receber" da primeira versão vira entrada
            pendente, e rendas extras sem "p" ficam confirmadas. */
         function migrate() {
+          if (!S.tetos || typeof S.tetos !== "object") S.tetos = {};
           Object.keys(S.months || {}).forEach(function (k) {
             var mo = S.months[k];
             if (!mo || !mo.items) return;
@@ -4985,6 +5004,7 @@
           o.goals = juntaLista(l.goals, r.goals, b.goals);
           o.invests = juntaLista(l.invests, r.invests, b.invests);
           o.debts = juntaLista(l.debts, r.debts, b.debts);
+          o.tetos = juntaObjeto(l.tetos || {}, r.tetos || {}, b.tetos || {});
           /* cotações: soma dos dois lados (é dado que só cresce) */
           [l.px || {}, r.px || {}].forEach(function (fonte) {
             for (p in fonte) {
@@ -6758,14 +6778,30 @@
             (ks.length
               ? ks
                   .map(function (c) {
+                    var teto = Number((S.tetos || {})[c]) || 0,
+                      over = teto > 0 && by[c] > teto;
                     return (
-                      '<div class="cat"><span>' +
+                      '<div class="cat' +
+                      (over ? " over" : "") +
+                      '" data-c="' +
+                      esc(c) +
+                      '" title="Toque pra definir o teto">' +
+                      "<span>" +
                       esc(c) +
                       '</span><div><i style="width:' +
-                      (by[c] / tot) * 100 +
-                      '%"></i></div><b>' +
+                      (teto > 0
+                        ? Math.min(100, (by[c] / teto) * 100)
+                        : (by[c] / tot) * 100) +
+                      '%"></i></div><div class="cat-v"><b>' +
                       brl(by[c]) +
-                      "</b></div>"
+                      "</b>" +
+                      (teto > 0
+                        ? "<small>" +
+                          (over ? "acima do teto " : "teto ") +
+                          brl(teto) +
+                          "</small>"
+                        : "") +
+                      "</div></div>"
                     );
                   })
                   .join("")
@@ -9087,9 +9123,23 @@
           };
           diz();
         })();
+        $("cats").onclick = function (e) {
+          var el = e.target && e.target.closest ? e.target.closest(".cat") : null;
+          if (!el || !el.dataset || !el.dataset.c) return;
+          var c = el.dataset.c,
+            T = S.tetos || {},
+            v = prompt("Teto pra " + c + " (R$, 0 tira):", T[c] || "");
+          if (v === null) return;
+          v = num(v);
+          if (!(v > 0)) delete T[c];
+          else T[c] = Math.round(v * 100) / 100;
+          S.tetos = T;
+          save();
+          render();
+        };
         $("reset").onclick = function () {
           if (confirm("Apagar todos os dados? Isso não pode ser desfeito.")) {
-            S = { months: {}, goals: [] };
+            S = { months: {}, goals: [], tetos: {} };
             save();
             render();
           }
