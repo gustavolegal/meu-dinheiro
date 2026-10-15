@@ -1147,6 +1147,9 @@
       .cal-wd-fds {
         color: var(--primary);
         font-weight: 700;
+        background: color-mix(in oklab, var(--primary) 12%, transparent);
+        border-radius: 6px;
+        padding: 2px 0;
       }
       .cal-day {
         display: grid;
@@ -8210,17 +8213,17 @@
                   '" d="' + d + '"><title>' + p[1] + ": " + brl(p[2]) +
                   "</title></path>";
               } else {
-                /* fatia pequena demais (menos de ~17° do anel): um ponto no
-                   meio do anel, no lugar da fatia (fatia espremida aqui
-                   sempre saía torta) */
+                /* fatia pequena demais (menos de ~17° do anel): um ponto
+                   menor que a largura do anel, no meio dele — ponto do
+                   tamanho do anel virava um borrão grudado nos vizinhos */
                 var am = a + span / 2,
-                  rm = (ro + ri) / 2,
-                  rd = (ro - ri) / 2 - cr;
+                  rm = (ro + ri) / 2;
                 segs +=
-                  '<circle class="dseg" data-k="' + p[0] + '" style="' + sty +
+                  '<circle class="dseg" data-k="' + p[0] +
+                  '" style="fill:var(--' + p[0] + ');stroke:none;--i:' + si +
                   '" cx="' + (50 + rm * Math.sin(am)).toFixed(2) +
                   '" cy="' + (50 - rm * Math.cos(am)).toFixed(2) +
-                  '" r="' + rd.toFixed(2) + '"><title>' + p[1] + ": " +
+                  '" r="4.2"><title>' + p[1] + ": " +
                   brl(p[2]) + "</title></circle>";
               }
             }
