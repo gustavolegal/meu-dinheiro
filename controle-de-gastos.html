@@ -5215,8 +5215,9 @@
            devolver o valor que o fds tinha no começo: sem isso, gastar no
            sábado derruba o "dá por fim de semana" na hora, o que não faz
            sentido — o fds já tinha o seu combinado, os próximos têm o deles.
-           Segunda-feira a soma zera e a conta se acerta sozinha. */
-        function fdsGasto() {
+           Segunda-feira a soma zera e a conta se acerta sozinha.
+           Com "sab" conta só o sábado (é o que o domingo herda). */
+        function fdsGasto(so) {
           var h = new Date(),
             seg = new Date(
               h.getFullYear(),
@@ -5234,7 +5235,7 @@
               var ts = atOf(i);
               if (!ts) return;
               var dk = calKey(new Date(ts));
-              if (dk === sab || dk === dom) t += i.v;
+              if (so === "sab" ? dk === sab : dk === sab || dk === dom) t += i.v;
             });
           });
           return t;
@@ -5638,6 +5639,15 @@
               _wks = isNow ? weekends(nx) : 0,
               _perDay = left / _dl,
               _neg = _perDay < 0,
+              /* Fim de semana é um bolo só (sáb+dom): no domingo o limite do
+                 dia é o que sobrou do sábado. */
+              _fdsHoje = now.getDay() === 0 || now.getDay() === 6,
+              _dom = now.getDay() === 0,
+              _cotaFds = _wks > 0 ? (left + fdsGasto()) / _wks : 0,
+              _limHoje =
+                _fdsHoje && _cotaFds > 0
+                  ? Math.max(0, _cotaFds - (_dom ? fdsGasto("sab") : 0))
+                  : _cotaFds,
               _when = nx
                 .toLocaleDateString("pt-BR", {
                   day: "numeric",
@@ -5668,8 +5678,10 @@
               (_neg ? " · sobra negativa" : "") +
               "</span>" +
               (_wks
-                ? '<span class="daily-sub"><small>Dá por fim de semana</small><b>' +
-                  brl(Math.max(0, (left + fdsGasto()) / _wks)) +
+                ? '<span class="daily-sub"><small>' +
+                  (_dom ? "Sobrou pro domingo" : "Dá por fim de semana (sáb+dom)") +
+                  "</small><b>" +
+                  brl(Math.max(0, _limHoje)) +
                   "</b></span>"
                 : "") +
               "</span>";
@@ -8620,9 +8632,9 @@
                 : "os <b>" + brl(cota) + "</b> por dia do ciclo") +
               ". Passar disso é adiantar gasto do resto do ciclo." +
               (cotaFds > 0
-                ? " No fim de semana, anel cheio = os <b>" +
+                ? " No fim de semana, sábado e domingo dividem <b>" +
                   brl(cotaFds) +
-                  "</b> do fim de semana."
+                  "</b> — o que sobrar do sábado vira o limite do domingo."
                 : "");
           else if (calVista === "ciclo")
             nota =
@@ -8673,20 +8685,37 @@
               x +
               "</span>";
           });
+          var sabV = function (dd) {
+            /* O quanto saiu no sábado desta semana — é o que o domingo
+               "herda" descontado do bolo do fds. */
+            var s = r.por[calKey(new Date(dd.getFullYear(), dd.getMonth(), dd.getDate() - 1))];
+            return s ? s.v || 0 : 0;
+          };
           for (var d = new Date(sem); d <= ate; d.setDate(d.getDate() + 1)) {
             var k = calKey(d),
               dentro = k >= calIni && k <= calFim,
               g = dentro ? r.por[k] : null,
               v = g ? g.v : 0,
               fds = d.getDay() === 0 || d.getDay() === 6,
-              lim = fds && cotaFds > 0 ? cotaFds : cota,
+              /* Sáb e dom dividem o MESMO bolo do fds: o que não gastou no
+                 sábado vira o limite do domingo. Cada fds é uma conta só —
+                 passado, atual ou futuro, o domingo olha apenas o sábado dele. */
+              lim =
+                fds && cotaFds > 0
+                  ? Math.max(0, cotaFds - (d.getDay() === 0 ? sabV(d) : 0))
+                  : cota,
               pct =
                 v > 0 && lim > 0
                   ? Math.min(1, v / lim)
+                  : v > 0 && fds && cotaFds > 0 && lim <= 0
+                  ? 1
                   : v > 0 && r.max > 0
                   ? Math.min(1, v / r.max)
                   : 0,
-              over = lim > 0 && v > lim + 0.005,
+              over =
+                fds && cotaFds > 0
+                  ? v > lim + 0.005
+                  : lim > 0 && v > lim + 0.005,
               sel = k === calSel,
               anel =
                 '<span class="cal-ring"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="cal-track" cx="18" cy="18" r="15.9"></circle>' +
