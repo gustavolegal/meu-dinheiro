@@ -5322,6 +5322,7 @@
         function render() {
           if (!S.debts) S.debts = [];
           if (!S.invests) S.invests = [];
+          rendeMetas(); /* credita o rendimento do porquinho antes de desenhar */
           var m = month(),
             k = key(cur);
           try {
@@ -5992,6 +5993,49 @@
             (m ? " e " + m + (m === 1 ? " mês" : " meses") : "")
           );
         }
+        /* Porquinho do Inter: o valor guardado rende todo dia (juros compostos).
+           Credita só os dias INTEIROS desde o último crédito e avança o relógio
+           nessa mesma medida — assim dois aparelhos chegam no mesmo número.
+           `rendSaved` é a âncora: se o guardado mudou por fora (depósito, edição
+           à mão, junção de aparelhos), re-ancora SEM creditar — antes não
+           ganhar centavos do que creditar duas vezes o mesmo dia. */
+        function rendeMetas() {
+          var now = Date.now(),
+            mexeu = false;
+          (S.goals || []).forEach(function (g) {
+            var r = Number(g.rend) || 0,
+              sv = Number(g.saved) || 0;
+            if (!(r > 0)) return;
+            if (!(sv > 0) || g.completed || sv >= Number(g.target)) {
+              /* sem dinheiro guardado ou meta concluída: o relógio acompanha,
+                 pra não creditar os dias parados quando voltar a render */
+              g.rendAt = now;
+              g.rendSaved = sv;
+              return;
+            }
+            var base = Number(g.rendAt) || 0,
+              dias = base ? Math.floor((now - base) / 86400000) : 0;
+            if (!base || !(Math.abs(sv - Number(g.rendSaved)) <= 0.01)) {
+              g.rendAt = now; /* primeiro dia, ou âncora velha: começa agora */
+              g.rendSaved = sv;
+              mexeu = true; /* persiste a âncora nova (e cura estado misturado) */
+              return;
+            }
+            if (dias > 0) {
+              g.saved = r2(sv * Math.pow(1 + r / 100, dias / 365));
+              g.rendSaved = g.saved;
+              g.rendAt = base + dias * 86400000;
+              mexeu = true;
+            }
+          });
+          if (mexeu) {
+            /* Persiste SEM passar pelo save(): save() apaga o rascunho do ciclo
+               aberto, e aqui pode ser só o relógio de um novo dia. O savedAt
+               novo faz o próximo sync subir a mudança do jeito normal. */
+            S.savedAt = Date.now();
+            local();
+          }
+        }
         function goals(left) {
           goalLeft = left;
           var curMeta = {};
@@ -6072,7 +6116,15 @@
                       brl(x.target) +
                       '</span><span class="sub">Plano: ' +
                       brl(x.monthly) +
-                      "/mês</span></div>" +
+                      "/mês" +
+                      (x.rend > 0 && !completed && x.saved > 0
+                        ? " · rende +" +
+                          brl((x.saved * x.rend) / 1200) +
+                          "/mês (" +
+                          String(x.rend).replace(".", ",") +
+                          "%/ano)"
+                        : "") +
+                      "</span></div>" +
                       (completed
                         ? ""
                         : '<div class="goal-forecast"><b>Faltam ' +
@@ -7342,12 +7394,25 @@
               mo = num(
                 prompt("Quanto guardar por mês (R$):", g.monthly),
               ),
-              sv = num(prompt("Quanto já tem guardado (R$):", g.saved));
+              sv = num(prompt("Quanto já tem guardado (R$):", g.saved)),
+              rd = num(
+                prompt(
+                  "Rendimento do porquinho ao ano (%; 0 = sem):",
+                  g.rend || 0,
+                ),
+              );
             if (t > 0) g.target = t;
             if (mo > 0) g.monthly = mo;
             if (sv >= 0) {
               g.saved = sv;
               g.completed = g.saved >= g.target;
+            }
+            if (rd >= 0) {
+              g.rend = rd;
+              if (rd > 0 && !(Number(g.rendAt) > 0)) {
+                g.rendAt = Date.now();
+                g.rendSaved = Number(g.saved) || 0;
+              }
             }
           }
           save();
