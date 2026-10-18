@@ -4257,13 +4257,13 @@
 
       <div data-tab="gastos">
         <div class="seg" data-grp="gastos">
-          <button class="on" data-s="fixed">Fixos</button
-          ><button data-s="var">Variáveis</button
+          <button data-s="fixed">Fixos</button
+          ><button class="on" data-s="var">Variáveis</button
           ><button data-s="debt">Dívidas</button>
         </div>
       </div>
       <div class="cols" data-tab="gastos" data-grp="gastos">
-        <section class="card on" data-sub="fixed">
+        <section class="card" data-sub="fixed">
           <div class="expense-heading">
             <div>
               <h2>Gastos fixos</h2>
@@ -4304,7 +4304,7 @@
           <ul class="expense-list" id="l-fixed"></ul>
           <div id="canc"></div>
         </section>
-        <section class="card" data-sub="var">
+        <section class="card on" data-sub="var">
           <div class="expense-heading">
             <div>
               <h2>Gastos variáveis</h2>
@@ -5211,6 +5211,34 @@
           }
           return n;
         }
+        /* O que já saiu neste fim de semana (sáb+dom desta semana). Serve pra
+           devolver o valor que o fds tinha no começo: sem isso, gastar no
+           sábado derruba o "dá por fim de semana" na hora, o que não faz
+           sentido — o fds já tinha o seu combinado, os próximos têm o deles.
+           Segunda-feira a soma zera e a conta se acerta sozinha. */
+        function fdsGasto() {
+          var h = new Date(),
+            seg = new Date(
+              h.getFullYear(),
+              h.getMonth(),
+              h.getDate() - ((h.getDay() + 6) % 7),
+            ),
+            sab = calKey(new Date(seg.getFullYear(), seg.getMonth(), seg.getDate() + 5)),
+            dom = calKey(new Date(seg.getFullYear(), seg.getMonth(), seg.getDate() + 6)),
+            t = 0;
+          Object.keys(S.months || {}).forEach(function (kk) {
+            var mm = S.months[kk];
+            if (!mm || !mm.items) return;
+            mm.items.forEach(function (i) {
+              if (i.t !== "var" && i.t !== "fixed") return;
+              var ts = atOf(i);
+              if (!ts) return;
+              var dk = calKey(new Date(ts));
+              if (dk === sab || dk === dom) t += i.v;
+            });
+          });
+          return t;
+        }
         function $(id) {
           return document.getElementById(id);
         }
@@ -5641,7 +5669,7 @@
               "</span>" +
               (_wks
                 ? '<span class="daily-sub"><small>Dá por fim de semana</small><b>' +
-                  brl(Math.max(0, left / _wks)) +
+                  brl(Math.max(0, (left + fdsGasto()) / _wks)) +
                   "</b></span>"
                 : "") +
               "</span>";
@@ -8426,7 +8454,7 @@
           var mo = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
           return mo[+mk.slice(5, 7) - 1] + "/" + mk.slice(2, 4);
         }
-        /* Soma as variáveis lançadas entre duas datas — varre todos os ciclos,
+        /* Soma os gastos lançados entre duas datas — varre todos os ciclos,
            porque a compra mora no ciclo em que foi lançada. */
         function calSoma(ini, fim) {
           var a = calKey(ini),
@@ -8436,7 +8464,10 @@
             var mm = S.months[kk];
             if (!mm || !mm.items) return;
             mm.items.forEach(function (i) {
-              if (i.t !== "var") return;
+              /* Gasto do dia: variável (vale o dia em que entrou) e fixo
+                 lançado à mão, que tem data. Conta de mês copiada pra frente
+                 não tem data, então continua fora do calendário. */
+              if (i.t !== "var" && !(i.t === "fixed" && i.at)) return;
               var ts = atOf(i);
               if (!ts) return;
               var dk = calKey(new Date(ts));
@@ -8562,7 +8593,7 @@
           if (!r.total)
             return (
               '<div class="cal-head"><p class="cal-sub">' +
-              "Nenhuma variável lançada neste período." +
+              "Nenhum gasto lançado neste período." +
               "</p></div>"
             );
           var qtd =
@@ -8600,7 +8631,7 @@
           return (
             '<div class="cal-head"><b class="cal-tot">' +
             brl(r.total) +
-            '</b><span class="cal-unit">em variáveis</span>' +
+            '</b><span class="cal-unit">em gastos</span>' +
             '<p class="cal-sub">Gastou em ' +
             qtd +
             " · média " +
@@ -8689,7 +8720,7 @@
               ": " +
               (v > 0
                 ? brl(v) +
-                  " em variáveis" +
+                  " em gastos" +
                   (over
                     ? fds && cotaFds > 0
                       ? ", acima do limite do fim de semana"
@@ -8733,7 +8764,7 @@
               " de " +
               y +
               ": " +
-              (v > 0 ? brl(v) + " em variáveis" : "nada lançado") +
+              (v > 0 ? brl(v) + " em gastos" : "nada lançado") +
               '"><span class="cal-mes-n">' +
               mo[i] +
               '</span><span class="cal-mes-v">' +
@@ -8772,7 +8803,7 @@
               ' aria-label="' +
               y +
               ": " +
-              (v > 0 ? brl(v) + " em variáveis" : "nada lançado") +
+              (v > 0 ? brl(v) + " em gastos" : "nada lançado") +
               '"><span class="cal-mes-n">' +
               y +
               '</span><span class="cal-mes-v">' +
@@ -8824,7 +8855,7 @@
           calFim = calKey(calP.fim);
           var cota = calVista === "ciclo" && daysLeft > 0 ? left / daysLeft : 0,
             wks = calVista === "ciclo" && isNow ? weekends(calP.fim) : 0,
-            cotaFds = wks > 0 ? left / wks : 0,
+            cotaFds = wks > 0 ? (left + fdsGasto()) / wks : 0,
             r = calSoma(calP.ini, calP.fim),
             hoje = calKey(new Date());
           calPor = r.por;
