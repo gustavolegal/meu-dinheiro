@@ -6172,6 +6172,11 @@
                         : '<button data-g="complete" data-id="' +
                           x.id +
                           '">Marcar concluída</button>') +
+                      (!completed && Number(x.saved) > 0
+                        ? '<button data-g="out" data-id="' +
+                          x.id +
+                          '">Tirar do porquinho</button>'
+                        : "") +
                       '<button data-g="edit" data-id="' +
                       x.id +
                       '">Editar valores</button><button class="remove" data-g="del" data-id="' +
@@ -7384,6 +7389,14 @@
             if (!confirm("Concluir a meta '" + g.name + "'?")) return;
             g.completed = true;
             g.saved = g.target;
+          } else if (b.dataset.g === "out") {
+            /* tirar do porquinho: quem paga é o porquinho, então isso não
+               vira gasto do ciclo — só baixa o valor guardado (ex: almoço
+               do giani saindo dos 160 que você separou no mês) */
+            var tem = Number(g.saved) || 0,
+              w = num(prompt("Quanto tirou do porquinho (R$):", ""));
+            if (tem <= 0 || !(w > 0)) return;
+            g.saved = r2(Math.max(0, tem - w));
           } else if (b.dataset.g === "del") {
             if (!confirm("Remover a meta " + g.name + "?")) return;
             S.goals = S.goals.filter(function (x) {
