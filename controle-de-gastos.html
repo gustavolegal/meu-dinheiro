@@ -2420,6 +2420,15 @@
         font-size: 0.95rem;
         font-variant-numeric: tabular-nums;
       }
+      #cof-taxa {
+        cursor: pointer;
+      }
+      #cof-taxa:hover span,
+      #cof-taxa:focus span {
+        color: var(--ink);
+        text-decoration: underline dotted;
+        text-underline-offset: 3px;
+      }
 
       /* ---- visibilidade das abas ---- */
       [data-tab] {
@@ -4939,7 +4948,12 @@
            alteração: despacha o PUT pendente com keepalive (vale também pro
            celular que ficou sem rede: se o servidor voltar, sobe aqui). */
         function flush() {
-          if (!(timer || Number(S.savedAt || 0) > ultSinc) || !temServidor()) return;
+          if (
+            !temDados(S) ||
+            !(timer || Number(S.savedAt || 0) > ultSinc) ||
+            !temServidor()
+          )
+            return;
           clearTimeout(timer);
           timer = null;
           var corpo = JSON.stringify(ser());
@@ -5165,7 +5179,10 @@
         window.addEventListener("focus", function () {
           sincroniza();
         });
-        function push() {
+        function push(forca) {
+          /* Estado vazio nunca sobe (aparelho novo/aba sem dados não pode
+             apagar o banco) — só o "Apagar todos os dados" força. */
+          if (!forca && !temDados(S)) return;
           var o = ser(),
             corpo = JSON.stringify(o);
           status("Enviando para o site…");
@@ -5726,14 +5743,18 @@
                   "</b></div>"
                 : "") +
               (cfTaxa > 0
-                ? '<div class="cof-lin"><span>Rende agora</span><b>+' +
+                ? '<div class="cof-lin" id="cof-taxa" role="button" tabindex="0" title="Toque para ajustar a taxa"><span>Rende agora</span><b>+' +
                   brl(cfDia) +
                   "/dia útil · " +
                   String(cfTaxa).replace(".", ",") +
-                  "%/ano (100% CDI)</b></div>"
+                  "%/ano (≈" +
+                  /* 13,65 = CDI atual (brasilapi); o “%/ano” acima é o que o
+                     Mercado Pago credita de verdade (toque pra calibrar) */
+                  Math.round((cfTaxa / 13.65) * 100) +
+                  "% do CDI)</b></div>"
                 : "") +
               '<p class="sub" style="margin-top: 12px">O saldo anda sozinho: entra a renda, saem as contas pagas e o que você guarda nas metas. ' +
-              "O banco credita o rendimento em dia útil; aqui é a estimativa acompanhada (só rende o que está lá dentro — o valor exato aparece no app do Mercado Pago).</p>";
+              "O banco credita o rendimento em dia útil; aqui é a estimativa acompanhada — só rende o que está lá dentro, e o valor exato aparece no app do Mercado Pago. Toque na taxa pra ajustar.</p>";
           }
           var _day = $("daily");
           if (_day) {
@@ -6200,6 +6221,10 @@
            dia), e o acumulado fica fora das contas do ciclo. Quem credita de
            verdade é o banco; o app só acompanha. */
         function rendeCof(saldo) {
+          /* Só depois do primeiro sync (ou de assumir que não tem servidor):
+             gravar savedAt antes disso fazia o banco parecer "mais velho" e um
+             aparelho novo não adotava os dados do servidor. */
+          if (!ready) return;
           var c = S.cof,
             now = Date.now();
           if (!c || typeof c !== "object") c = S.cof = {};
@@ -9534,11 +9559,32 @@
           save();
           render();
         };
+        /* Toque na linha "Rende agora" do cofrinho: ajusta a taxa %/ano —
+           é assim que o app calibra com o que o banco credita de verdade. */
+        $("cofbox").onclick = function (e) {
+          var el =
+            e.target && e.target.closest ? e.target.closest("#cof-taxa") : null;
+          if (!el) return;
+          var c = S.cof || (S.cof = {}),
+            v = prompt(
+              "Rendimento do cofrinho ao ano em % (0 = sem):",
+              c.rend || 13.65,
+            );
+          if (v === null) return;
+          v = num(v);
+          c.rend = v > 0 ? v : 0;
+          save();
+          render();
+        };
         $("reset").onclick = function () {
           if (confirm("Apagar todos os dados? Isso não pode ser desfeito.")) {
             S = { months: {}, goals: [], tetos: {} };
             save();
             render();
+            /* apagar de verdade: o push normal não sobe estado vazio */
+            clearTimeout(timer);
+            timer = null;
+            push(true);
           }
         };
         render();
