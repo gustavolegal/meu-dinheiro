@@ -5993,12 +5993,54 @@
             (m ? " e " + m + (m === 1 ? " mês" : " meses") : "")
           );
         }
-        /* Porquinho do Inter: o valor guardado rende todo dia (juros compostos).
-           Credita só os dias INTEIROS desde o último crédito e avança o relógio
-           nessa mesma medida — assim dois aparelhos chegam no mesmo número.
-           `rendSaved` é a âncora: se o guardado mudou por fora (depósito, edição
-           à mão, junção de aparelhos), re-ancora SEM creditar — antes não
-           ganhar centavos do que creditar duas vezes o mesmo dia. */
+        /* Feriado nacional (dias úteis Anbima/B3): os fixos + os que andam com
+           a Páscoa (carnaval seg/ter, sexta-feira santa, corpus christi). Isso
+           importa porque o CDI só roda em dia útil — Inter e Mercado Pago
+           creditam rendimento só em dia útil, nunca em fim de semana. */
+        function feriado(d) {
+          var y = d.getFullYear(),
+            m = d.getMonth() + 1,
+            dd = d.getDate();
+          if (
+            (m === 1 && dd === 1) ||
+            (m === 4 && dd === 21) ||
+            (m === 5 && dd === 1) ||
+            (m === 9 && dd === 7) ||
+            (m === 10 && dd === 12) ||
+            (m === 11 && dd === 2) ||
+            (m === 11 && dd === 15) ||
+            (m === 11 && dd === 20) ||
+            (m === 12 && dd === 25)
+          )
+            return true;
+          /* Páscoa (Meeus/Jones/Butcher, calendário gregoriano) */
+          var a = y % 19,
+            b = Math.floor(y / 100),
+            c = y % 100,
+            d1 = Math.floor(b / 4),
+            e = b % 4,
+            f = Math.floor((b + 8) / 25),
+            g2 = Math.floor((b - f + 1) / 3),
+            h = (19 * a + b - d1 - g2 + 15) % 30,
+            i = Math.floor(c / 4),
+            k = c % 4,
+            l = (32 + 2 * e + 2 * i - h - k) % 7,
+            mn = Math.floor((a + 11 * h + 22 * l) / 451),
+            mes = Math.floor((h + l - 7 * mn + 114) / 31),
+            dia = ((h + l - 7 * mn + 114) % 31) + 1,
+            t = Math.round(
+              (new Date(y, d.getMonth(), dd) - new Date(y, mes - 1, dia)) /
+                86400000,
+            );
+          return t === -48 || t === -47 || t === -2 || t === 60;
+        }
+        /* Porquinho do Inter/Mercado Pago: o valor guardado rende em DIA ÚTIL
+           (juros compostos). Credita os dias úteis INTEIROS desde o último
+           crédito e avança o relógio até a última meia-noite conferida — assim
+           dois aparelhos chegam no mesmo número. `rendSaved` é a âncora: se o
+           guardado mudou por fora (depósito, edição à mão, junção de
+           aparelhos), re-ancora SEM creditar — antes não ganhar centavos do
+           que creditar duas vezes o mesmo dia. */
         function rendeMetas() {
           var now = Date.now(),
             mexeu = false;
@@ -6013,18 +6055,33 @@
               g.rendSaved = sv;
               return;
             }
-            var base = Number(g.rendAt) || 0,
-              dias = base ? Math.floor((now - base) / 86400000) : 0;
+            var base = Number(g.rendAt) || 0;
             if (!base || !(Math.abs(sv - Number(g.rendSaved)) <= 0.01)) {
               g.rendAt = now; /* primeiro dia, ou âncora velha: começa agora */
               g.rendSaved = sv;
               mexeu = true; /* persiste a âncora nova (e cura estado misturado) */
               return;
             }
-            if (dias > 0) {
-              g.saved = r2(sv * Math.pow(1 + r / 100, dias / 365));
+            /* Conta meia-noite a meia-noite: cada dia que termina e é útil
+               vale 1/252 dos juros (252 = dias úteis do ano, padrão do CDI). */
+            var bd = new Date(base),
+              t = new Date(
+                bd.getFullYear(),
+                bd.getMonth(),
+                bd.getDate() + 1,
+              ).getTime(),
+              du = 0,
+              ult = 0;
+            while (t <= now) {
+              var dia = new Date(t - 86400000);
+              if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) du++;
+              ult = t;
+              t += 86400000;
+            }
+            if (du > 0) {
+              g.saved = r2(sv * Math.pow(1 + r / 100, du / 252));
               g.rendSaved = g.saved;
-              g.rendAt = base + dias * 86400000;
+              g.rendAt = ult;
               mexeu = true;
             }
           });
@@ -6122,7 +6179,7 @@
                           brl((x.saved * x.rend) / 1200) +
                           "/mês (" +
                           String(x.rend).replace(".", ",") +
-                          "%/ano)"
+                          "%/ano · só dia útil)"
                         : "") +
                       "</span></div>" +
                       (completed
