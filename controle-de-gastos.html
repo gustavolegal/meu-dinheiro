@@ -2420,11 +2420,14 @@
         font-size: 0.95rem;
         font-variant-numeric: tabular-nums;
       }
-      #cof-taxa {
+      #cof-taxa,
+      #cof-ml {
         cursor: pointer;
       }
       #cof-taxa:hover span,
-      #cof-taxa:focus span {
+      #cof-taxa:focus span,
+      #cof-ml:hover span,
+      #cof-ml:focus span {
         color: var(--ink);
         text-decoration: underline dotted;
         text-underline-offset: 3px;
@@ -5716,7 +5719,11 @@
               cfTaxa = Number(cf.rend) || 0,
               cfAcum = r2(Number(cf.rendAcum) || 0),
               cfTot = r2(realLeft + cfAcum),
-              cfDia = cfTaxa > 0 ? r2((cfTot * cfTaxa) / 25200) : 0,
+              /* quanto está de verdade dentro do cofrinho do ML (é o valor que
+                 o app deles mostra; o resto do caixa não rende) */
+              cfMl = Number(cf.ml) > 0 ? r2(Number(cf.ml)) : null,
+              cfRend = cfMl == null ? cfTot : cfMl,
+              cfDia = cfTaxa > 0 ? r2((cfRend * cfTaxa) / 25200) : 0,
               cfIni = Number(cf.ini) || 0;
             cofEl.innerHTML =
               '<div class="cof-big"><small>No cofrinho (Mercado Pago)</small><b class="' +
@@ -5726,6 +5733,14 @@
               "</b><em>seu dinheiro + rendimento estimado</em></div>" +
               '<div class="cof-lin"><span>Seu dinheiro (caixa do ciclo)</span><b>' +
               brl(realLeft) +
+              "</b></div>" +
+              '<div class="cof-lin" id="cof-ml" role="button" tabindex="0" title="Toque pra ajustar quanto está rendendo no Mercado Pago"><span>Rendendo no ML</span><b>' +
+              (cfMl == null
+                ? brl(cfTot) + " (tudo)"
+                : brl(cfMl) +
+                  " (fora " +
+                  brl(Math.max(0, r2(cfTot - cfMl))) +
+                  ")") +
               "</b></div>" +
               (cfAcum > 0.004
                 ? '<div class="cof-lin"><span>Rendeu (estimado' +
@@ -5754,7 +5769,7 @@
                   "% do CDI)</b></div>"
                 : "") +
               '<p class="sub" style="margin-top: 12px">O saldo anda sozinho: entra a renda, saem as contas pagas e o que você guarda nas metas. ' +
-              "O banco credita o rendimento em dia útil; aqui é a estimativa acompanhada — só rende o que está lá dentro, e o valor exato aparece no app do Mercado Pago. Toque na taxa pra ajustar.</p>";
+              "O banco credita o rendimento em dia útil; aqui é a estimativa acompanhada — só rende o que está lá dentro, e o valor exato aparece no app do Mercado Pago. Toque no valor do ML ou na taxa pra ajustar.</p>";
           }
           var _day = $("daily");
           if (_day) {
@@ -6253,6 +6268,9 @@
             t += 86400000;
           }
           var snap = Number(c.saldoDia) || 0;
+          /* Só rende o que está dentro do cofrinho do ML (c.ml). Sem esse
+             valor, supõe que o caixa inteiro está lá. */
+          if (Number(c.ml) > 0) snap = Math.min(Number(c.ml), snap);
           if (du > 0 && snap > 0) {
             c.rendAcum = r2(
               (Number(c.rendAcum) || 0) +
@@ -9563,13 +9581,28 @@
            é assim que o app calibra com o que o banco credita de verdade. */
         $("cofbox").onclick = function (e) {
           var el =
-            e.target && e.target.closest ? e.target.closest("#cof-taxa") : null;
+            e.target && e.target.closest
+              ? e.target.closest("#cof-taxa, #cof-ml")
+              : null;
           if (!el) return;
-          var c = S.cof || (S.cof = {}),
-            v = prompt(
-              "Rendimento do cofrinho ao ano em % (0 = sem):",
-              c.rend || 13.65,
+          var c = S.cof || (S.cof = {});
+          if (el.id === "cof-ml") {
+            var q = prompt(
+              "Quanto está rendendo no cofrinho do Mercado Pago? (vazio ou 0 = tudo)",
+              Number(c.ml) > 0 ? c.ml : "",
             );
+            if (q === null) return;
+            q = num(q);
+            if (q > 0) c.ml = r2(q);
+            else delete c.ml;
+            save();
+            render();
+            return;
+          }
+          var v = prompt(
+            "Rendimento do cofrinho ao ano em % (0 = sem):",
+            c.rend || 13.65,
+          );
           if (v === null) return;
           v = num(v);
           c.rend = v > 0 ? v : 0;
