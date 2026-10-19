@@ -1926,6 +1926,29 @@
         gap: 4px 10px;
         font-size: 0.85rem;
       }
+      .goal-rend {
+        margin: 6px 0 10px;
+        font-size: 0.82rem;
+      }
+      .goal-rend summary {
+        cursor: pointer;
+        color: var(--mut);
+      }
+      .goal-rend summary:hover {
+        color: var(--ink);
+      }
+      .goal-rend-l {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 4px 0 4px 10px;
+        color: var(--mut);
+        font-variant-numeric: tabular-nums;
+      }
+      .goal-rend-l b {
+        color: var(--ink);
+        font-weight: 500;
+      }
       /* Rendimento de investimento: verde subiu, vermelho caiu. */
       .up {
         color: color-mix(in oklab, var(--ok) 78%, var(--ink));
@@ -6251,15 +6274,32 @@
                 bd.getDate() + 1,
               ).getTime(),
               du = 0,
-              ult = 0;
+              ult = 0,
+              dias = [];
             while (t <= now) {
               var dia = new Date(t - 86400000);
-              if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) du++;
+              if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) {
+                du++;
+                dias.push(dia);
+              }
               ult = t;
               t += 86400000;
             }
             if (du > 0) {
-              g.saved = r2(sv * Math.pow(1 + r / 100, du / 252));
+              /* um lançamento por dia útil no histórico da meta */
+              var taxaDia = r / 25200,
+                soma = 0;
+              if (!g.log) g.log = [];
+              dias.forEach(function (d) {
+                var v = sv * taxaDia;
+                soma += v;
+                g.log.push({
+                  d: key(d) + "-" + String(d.getDate()).padStart(2, "0"),
+                  v: r2(v),
+                });
+              });
+              if (g.log.length > 90) g.log = g.log.slice(-90);
+              g.saved = r2(sv + soma);
               g.rendSaved = g.saved;
               g.rendAt = ult;
               mexeu = true;
@@ -6438,6 +6478,31 @@
                           "%/ano · só dia útil)"
                         : "") +
                       "</span></div>" +
+                      (x.log && x.log.length
+                        ? '<details class="goal-rend"><summary>Rendimentos (' +
+                          x.log.length +
+                          ")</summary>" +
+                          x.log
+                            .slice(-12)
+                            .reverse()
+                            .map(function (y) {
+                              var dd = new Date(y.d + "T12:00:00");
+                              return (
+                                '<div class="goal-rend-l"><span>' +
+                                dd
+                                  .toLocaleDateString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "short",
+                                  })
+                                  .replace(/\./g, "") +
+                                "</span><b>+" +
+                                brl(Number(y.v) || 0) +
+                                "</b></div>"
+                              );
+                            })
+                            .join("") +
+                          "</details>"
+                        : "") +
                       (completed
                         ? ""
                         : '<div class="goal-forecast"><b>Faltam ' +
