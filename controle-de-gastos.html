@@ -2341,6 +2341,13 @@
         font-size: 0.78rem;
         font-weight: 500;
       }
+      @media (max-width: 430px) {
+        /* 6 abas: rótulo menor e quebra em 2 linhas com folga no celular */
+        #tabs button {
+          font-size: 0.7rem;
+          padding: 6px 2px;
+        }
+      }
       @media (hover: hover) and (pointer: fine) {
         #tabs button:hover {
           background: var(--card-2);
@@ -2377,6 +2384,43 @@
         animation: cycIn 280ms cubic-bezier(0.22, 1, 0.36, 1);
       }
 
+      /* ---- página do cofrinho ---- */
+      .cof-big {
+        display: grid;
+        gap: 2px;
+        margin: 4px 0 12px;
+      }
+      .cof-big small {
+        color: var(--mut);
+        font-size: 0.85rem;
+      }
+      .cof-big b {
+        font-size: 2.1rem;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .cof-big em {
+        color: var(--mut);
+        font-size: 0.8rem;
+        font-style: normal;
+      }
+      .cof-lin {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        padding: 9px 0;
+        border-top: 1px solid var(--line);
+      }
+      .cof-lin span {
+        color: var(--mut);
+        font-size: 0.85rem;
+      }
+      .cof-lin b {
+        font-size: 0.95rem;
+        font-variant-numeric: tabular-nums;
+      }
+
       /* ---- visibilidade das abas ---- */
       [data-tab] {
         display: none;
@@ -2385,6 +2429,7 @@
       body[data-view="renda"] [data-tab="renda"],
       body[data-view="gastos"] [data-tab="gastos"],
       body[data-view="metas"] [data-tab="metas"],
+      body[data-view="cofrinho"] [data-tab="cofrinho"],
       body[data-view="mais"] [data-tab="mais"] {
         display: block;
       }
@@ -4475,6 +4520,15 @@
         <div id="invests"></div>
       </section>
 
+      <section class="card" data-tab="cofrinho">
+        <h2>Cofrinho (Mercado Pago)</h2>
+        <p class="sub">
+          Onde fica o dinheiro do ciclo, rendendo 100% do CDI. Não é meta — não
+          entra no “guardado”: é o seu caixa.
+        </p>
+        <div id="cofbox" aria-live="polite"></div>
+      </section>
+
       <section class="card" data-tab="resumo">
         <h2>Recomendações</h2>
         <div id="tips"></div>
@@ -4565,6 +4619,7 @@
       <button data-go="renda">Renda</button>
       <button data-go="gastos">Gastos</button>
       <button data-go="metas">Metas</button>
+      <button data-go="cofrinho">Cofrinho</button>
       <button data-go="mais">Mais</button>
     </nav>
     <script>
@@ -4665,6 +4720,7 @@
            pendente, e rendas extras sem "p" ficam confirmadas. */
         function migrate() {
           if (!S.tetos || typeof S.tetos !== "object") S.tetos = {};
+          if (!S.cof || typeof S.cof !== "object") S.cof = {};
           Object.keys(S.months || {}).forEach(function (k) {
             var mo = S.months[k];
             if (!mo || !mo.items) return;
@@ -5373,6 +5429,7 @@
             startBal = Number(m.start) || 0,
             realLeft = r2(startBal + ic - paidFix - mt - dv),
             falta = Math.max(0, fx + vr - paidFix);
+          rendeCof(realLeft); /* credita/ancora o rendimento do cofrinho */
           var paidOf = function (t) {
             return m.items
               .filter(function (i) {
@@ -5634,6 +5691,50 @@
                   "</b><em>falta guardar</em></div>"
                 : "") +
               "</div>";
+          /* Página do cofrinho: o saldo é o caixa do ciclo (o dinheiro vive
+             no Mercado Pago) + o rendimento estimado acompanhado. */
+          var cofEl = $("cofbox");
+          if (cofEl) {
+            var cf = S.cof || {},
+              cfTaxa = Number(cf.rend) || 0,
+              cfAcum = r2(Number(cf.rendAcum) || 0),
+              cfTot = r2(realLeft + cfAcum),
+              cfDia = cfTaxa > 0 ? r2((cfTot * cfTaxa) / 25200) : 0,
+              cfIni = Number(cf.ini) || 0;
+            cofEl.innerHTML =
+              '<div class="cof-big"><small>No cofrinho (Mercado Pago)</small><b class="' +
+              (cfTot >= 0 ? "pos" : "neg") +
+              '">' +
+              brl(cfTot) +
+              "</b><em>seu dinheiro + rendimento estimado</em></div>" +
+              '<div class="cof-lin"><span>Seu dinheiro (caixa do ciclo)</span><b>' +
+              brl(realLeft) +
+              "</b></div>" +
+              (cfAcum > 0.004
+                ? '<div class="cof-lin"><span>Rendeu (estimado' +
+                  (cfIni
+                    ? " desde " +
+                      new Date(cfIni)
+                        .toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                        })
+                        .replace(/\./g, "")
+                    : "") +
+                  ')</span><b class="pos">+' +
+                  brl(cfAcum) +
+                  "</b></div>"
+                : "") +
+              (cfTaxa > 0
+                ? '<div class="cof-lin"><span>Rende agora</span><b>+' +
+                  brl(cfDia) +
+                  "/dia útil · " +
+                  String(cfTaxa).replace(".", ",") +
+                  "%/ano (100% CDI)</b></div>"
+                : "") +
+              '<p class="sub" style="margin-top: 12px">O saldo anda sozinho: entra a renda, saem as contas pagas e o que você guarda nas metas. ' +
+              "O banco credita o rendimento em dia útil; aqui é a estimativa acompanhada (só rende o que está lá dentro — o valor exato aparece no app do Mercado Pago).</p>";
+          }
           var _day = $("daily");
           if (_day) {
             var _dl = Math.max(1, daysLeft),
@@ -6092,6 +6193,53 @@
             S.savedAt = Date.now();
             local();
           }
+        }
+        /* Cofrinho (Mercado Pago): é onde vive o caixa do ciclo — não é meta.
+           O rendimento aqui é a ESTIMATIVA acompanhada: cada dia útil fechado
+           rende 1/252 sobre o saldo que estava lá (`saldoDia`, um retrato por
+           dia), e o acumulado fica fora das contas do ciclo. Quem credita de
+           verdade é o banco; o app só acompanha. */
+        function rendeCof(saldo) {
+          var c = S.cof,
+            now = Date.now();
+          if (!c || typeof c !== "object") c = S.cof = {};
+          if (!(Number(c.rend) > 0)) c.rend = 13.65; /* 100% do CDI */
+          if (!(Number(c.ini) > 0)) c.ini = now;
+          var base = Number(c.at) || 0;
+          if (!base) {
+            c.at = now;
+            c.saldoDia = saldo;
+            S.savedAt = now;
+            local();
+            return;
+          }
+          var bd = new Date(base),
+            t = new Date(
+              bd.getFullYear(),
+              bd.getMonth(),
+              bd.getDate() + 1,
+            ).getTime(),
+            du = 0,
+            ult = 0;
+          while (t <= now) {
+            var dia = new Date(t - 86400000);
+            if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) du++;
+            ult = t;
+            t += 86400000;
+          }
+          var snap = Number(c.saldoDia) || 0;
+          if (du > 0 && snap > 0) {
+            c.rendAcum = r2(
+              (Number(c.rendAcum) || 0) +
+                snap * (Math.pow(1 + Number(c.rend) / 100, du / 252) - 1),
+            );
+            c.at = ult;
+            S.savedAt = now;
+            local();
+          } else if (du > 0) {
+            c.at = ult;
+          }
+          c.saldoDia = saldo;
         }
         function goals(left) {
           goalLeft = left;
@@ -7483,7 +7631,7 @@
               !confirm(
                 "Guardar a sobra do ciclo (" +
                   brl(val) +
-                  ") no cofrinho '" +
+                  ") no porquinho '" +
                   g.name +
                   "'?",
               )
@@ -7935,7 +8083,7 @@
             "resumo";
         } catch (e) {}
         if (v0 === "temas") v0 = "mais"; // aba antiga: agora vive dentro de "Mais"
-        if (["resumo", "renda", "gastos", "metas", "mais"].indexOf(v0) < 0)
+        if (["resumo", "renda", "gastos", "metas", "cofrinho", "mais"].indexOf(v0) < 0)
           v0 = "resumo";
         setView(v0);
         $("today").onclick = function () {
