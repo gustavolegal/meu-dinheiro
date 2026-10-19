@@ -2432,6 +2432,23 @@
         text-decoration: underline dotted;
         text-underline-offset: 3px;
       }
+      .cof-hist {
+        margin-top: 16px;
+      }
+      .cof-hist h4 {
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .cof-hist .cof-lin {
+        padding: 7px 0;
+      }
+      .cof-hist .cof-lin:first-of-type {
+        border-top: 0;
+      }
 
       /* ---- visibilidade das abas ---- */
       [data-tab] {
@@ -5768,6 +5785,32 @@
                   Math.round((cfTaxa / 13.65) * 100) +
                   "% do CDI)</b></div>"
                 : "") +
+              (function () {
+                var lg = (cf.log || []).slice(-14).reverse();
+                if (!lg.length) return "";
+                return (
+                  '<div class="cof-hist"><h4>Rendimentos</h4>' +
+                  lg
+                    .map(function (x) {
+                      var dd = new Date(x.d + "T12:00:00");
+                      return (
+                        '<div class="cof-lin"><span>' +
+                        dd
+                          .toLocaleDateString("pt-BR", {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "short",
+                          })
+                          .replace(/\./g, "") +
+                        "</span><b>+" +
+                        brl(Number(x.v) || 0) +
+                        "</b></div>"
+                      );
+                    })
+                    .join("") +
+                  "</div>"
+                );
+              })() +
               '<p class="sub" style="margin-top: 12px">O saldo anda sozinho: entra a renda, saem as contas pagas e o que você guarda nas metas. ' +
               "O banco credita o rendimento em dia útil; aqui é a estimativa acompanhada — só rende o que está lá dentro, e o valor exato aparece no app do Mercado Pago. O ML anuncia 100% do CDI, mas o que cai é o que vale (IR, dia parcial etc.) — toque no valor do ML ou na taxa pra ajustar.</p>";
           }
@@ -6260,10 +6303,14 @@
               bd.getDate() + 1,
             ).getTime(),
             du = 0,
-            ult = 0;
+            ult = 0,
+            dias = [];
           while (t <= now) {
             var dia = new Date(t - 86400000);
-            if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) du++;
+            if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) {
+              du++;
+              dias.push(dia);
+            }
             ult = t;
             t += 86400000;
           }
@@ -6272,10 +6319,21 @@
              valor, supõe que o caixa inteiro está lá. */
           if (Number(c.ml) > 0) snap = Math.min(Number(c.ml), snap);
           if (du > 0 && snap > 0) {
-            c.rendAcum = r2(
-              (Number(c.rendAcum) || 0) +
-                snap * (Math.pow(1 + Number(c.rend) / 100, du / 252) - 1),
-            );
+            /* um lançamento por dia útil no histórico (o valor exato do
+               rendimento é o que aparece no app do Mercado Pago) */
+            var taxaDia = Number(c.rend) / 25200,
+              soma = 0;
+            if (!c.log) c.log = [];
+            dias.forEach(function (d) {
+              var v = snap * taxaDia;
+              soma += v;
+              c.log.push({
+                d: key(d) + "-" + String(d.getDate()).padStart(2, "0"),
+                v: r2(v),
+              });
+            });
+            if (c.log.length > 90) c.log = c.log.slice(-90);
+            c.rendAcum = r2((Number(c.rendAcum) || 0) + soma);
             c.at = ult;
             S.savedAt = now;
             local();
