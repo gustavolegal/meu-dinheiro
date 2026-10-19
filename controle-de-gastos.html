@@ -6149,7 +6149,12 @@
                       pct = Math.min((x.saved / x.target) * 100, 100),
                       completed = Boolean(x.completed || rem <= 0),
                       contrib = curMeta[String(x.id)] || 0,
-                      n = completed ? 0 : Math.ceil(rem / x.monthly),
+                      /* sem plano mensal (cofrinho de sobra, ex: mercado
+                         livre) não tem "No plano atual": n fica 0 */
+                      n =
+                        completed || !(x.monthly > 0)
+                          ? 0
+                          : Math.ceil(rem / x.monthly),
                       eta = new Date();
                     eta.setMonth(eta.getMonth() + n);
                     return (
@@ -6171,11 +6176,13 @@
                       brl(x.saved) +
                       "</b> de " +
                       brl(x.target) +
-                      '</span><span class="sub">Plano: ' +
-                      brl(x.monthly) +
-                      "/mês" +
+                      '</span><span class="sub">' +
+                      (x.monthly > 0
+                        ? "Plano: " + brl(x.monthly) + "/mês"
+                        : "") +
                       (x.rend > 0 && !completed && x.saved > 0
-                        ? " · rende +" +
+                        ? (x.monthly > 0 ? " · " : "") +
+                          "rende +" +
                           brl((x.saved * x.rend) / 1200) +
                           "/mês (" +
                           String(x.rend).replace(".", ",") +
@@ -6186,16 +6193,20 @@
                         ? ""
                         : '<div class="goal-forecast"><b>Faltam ' +
                           brl(rem) +
-                          '</b><span class="sub">No plano atual: ' +
-                          dur(n) +
-                          " · " +
-                          eta
-                            .toLocaleDateString("pt-BR", {
-                              month: "short",
-                              year: "numeric",
-                            })
-                            .replace(/\./g, "") +
-                          "</span></div>") +
+                          "</b>" +
+                          (x.monthly > 0
+                            ? '<span class="sub">No plano atual: ' +
+                              dur(n) +
+                              " · " +
+                              eta
+                                .toLocaleDateString("pt-BR", {
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                                .replace(/\./g, "") +
+                              "</span>"
+                            : "") +
+                          "</div>") +
                       (completed && contrib <= 0
                         ? ""
                         : '<div class="goal-cycle' +
@@ -6215,7 +6226,7 @@
                       (completed
                         ? '<span class="goal-status">Objetivo atingido</span>'
                         : '<label class="goal-contribution"><span>Guardar neste ciclo</span><span class="goal-contribution-controls"><input class="gv" type="number" autocomplete="off" min="0.01" step="0.01" value="' +
-                          Math.min(x.monthly, rem) +
+                          (x.monthly > 0 ? Math.min(x.monthly, rem) : "") +
                           '" aria-label="Valor a guardar para ' +
                           esc(x.name) +
                           '"><button class="p save" data-g="add" data-id="' +
@@ -6228,7 +6239,11 @@
                         ? ""
                         : '<button data-g="complete" data-id="' +
                           x.id +
-                          '">Marcar concluída</button>') +
+                          '">Marcar concluída</button><button data-g="rest" data-id="' +
+                          x.id +
+                          '">Guardar a sobra do ciclo (' +
+                          brl(Math.max(0, left)) +
+                          ")</button>") +
                       (!completed && Number(x.saved) > 0
                         ? '<button data-g="out" data-id="' +
                           x.id +
@@ -7446,6 +7461,45 @@
             if (!confirm("Concluir a meta '" + g.name + "'?")) return;
             g.completed = true;
             g.saved = g.target;
+          } else if (b.dataset.g === "rest") {
+            /* guardar a sobra do ciclo de uma vez: joga o que ainda sobra
+               (o número grande da tela) neste cofrinho — "no fim do mês
+               passo o que sobrou pro cofrinho". */
+            var sob = r2(Number(goalLeft) || 0),
+              cabe = Math.max(
+                0,
+                (Number(g.target) || 0) - (Number(g.saved) || 0),
+              ),
+              val = Math.min(sob, cabe);
+            if (!(val > 0)) {
+              alert(
+                sob > 0
+                  ? "A meta já está completa — não cabe mais sobra nela."
+                  : "Não tem sobra neste ciclo (está em " + brl(sob) + ").",
+              );
+              return;
+            }
+            if (
+              !confirm(
+                "Guardar a sobra do ciclo (" +
+                  brl(val) +
+                  ") no cofrinho '" +
+                  g.name +
+                  "'?",
+              )
+            )
+              return;
+            month().items.push({
+              id: Date.now() + Math.random(),
+              at: Date.now(),
+              t: "meta",
+              gid: g.id,
+              n: g.name,
+              v: val,
+              c: "Metas",
+              auto: false,
+            });
+            g.saved = r2(g.saved + val);
           } else if (b.dataset.g === "out") {
             /* tirar do porquinho: quem paga é o porquinho, então isso não
                vira gasto do ciclo — só baixa o valor guardado (ex: almoço
