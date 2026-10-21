@@ -4934,8 +4934,25 @@
            último estado sincronizado (a "base"): campo que mudou de um lado vai
            pro resultado, e o que foi apagado de um lado não volta. É isso que
            faz a sincronização valer nos dois sentidos sem um apagar o outro. */
+        /* Compara por conteúdo, não por referência: o estado local e a base
+           vêm de JSON.parse diferentes, então dois objetos iguais nunca são
+           o mesmo objeto — e o lado local ganhava sempre, mesmo sem ter
+           mudado nada (era assim que um cofrinho velho voltava por cima do
+           novo a cada sync). */
+        function mesmo(a, b) {
+          return JSON.stringify(a) === JSON.stringify(b);
+        }
         function juntaCampo(l, r, b) {
-          return l === b ? r : l;
+          if (
+            l &&
+            r &&
+            typeof l === "object" &&
+            typeof r === "object" &&
+            !Array.isArray(l) &&
+            !Array.isArray(r)
+          )
+            return juntaObjeto(l, r, b);
+          return mesmo(l, b) ? r : l;
         }
         function juntaObjeto(l, r, b) {
           var o = {},
