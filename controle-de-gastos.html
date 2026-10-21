@@ -8991,19 +8991,26 @@
         function calSoma(ini, fim) {
           var a = calKey(ini),
             b = calKey(fim),
-            r = { por: {}, porMes: {}, total: 0, max: 0, maxD: "", dias: 0 };
+            r = { por: {}, porMes: {}, total: 0, max: 0, maxD: "", dias: 0 },
+            incP = {};
           Object.keys(S.months || {}).forEach(function (kk) {
             var mm = S.months[kk];
             if (!mm || !mm.items) return;
             mm.items.forEach(function (i) {
-              /* Gasto do dia: variável (vale o dia em que entrou) e fixo
-                 lançado à mão, que tem data. Conta de mês copiada pra frente
-                 não tem data, então continua fora do calendário. */
-              if (i.t !== "var" && !(i.t === "fixed" && i.at)) return;
               var ts = atOf(i);
               if (!ts) return;
               var dk = calKey(new Date(ts));
               if (dk < a || dk > b) return;
+              /* Entrada recebida vai pro seu dia — depois ela desconta do
+                 gasto daquele dia (frete cobrado, reembolso). */
+              if (i.t === "inc") {
+                if (i.p !== false) (incP[dk] = incP[dk] || []).push(i);
+                return;
+              }
+              /* Gasto do dia: variável (vale o dia em que entrou) e fixo
+                 lançado à mão, que tem data. Conta de mês copiada pra frente
+                 não tem data, então continua fora do calendário. */
+              if (i.t !== "var" && !(i.t === "fixed" && i.at)) return;
               var g = r.por[dk];
               if (!g) g = r.por[dk] = { v: 0, itens: [] };
               g.v += i.v;
@@ -9011,6 +9018,28 @@
               r.total += i.v;
               var mk = dk.slice(0, 7);
               r.porMes[mk] = (r.porMes[mk] || 0) + i.v;
+            });
+          });
+          /* O que entrou no mesmo dia abate o gasto do dia: o calendário
+             mostra o que saiu do bolso. Dia sem gasto não fica negativo —
+             só-entrou não é gasto. */
+          Object.keys(incP).forEach(function (dk) {
+            var g = r.por[dk];
+            if (!g || g.v <= 0) return;
+            var falta = g.v;
+            incP[dk].forEach(function (i) {
+              if (falta <= 0) return;
+              var abate = Math.min(i.v, falta);
+              falta = r2(falta - abate);
+              g.v = r2(g.v - abate);
+              r.total = r2(r.total - abate);
+              var mk = dk.slice(0, 7);
+              r.porMes[mk] = r2((r.porMes[mk] || 0) - abate);
+              g.itens.push(
+                abate === i.v
+                  ? i
+                  : { t: "inc", n: i.n, c: i.c, v: abate, at: i.at, id: i.id }
+              );
             });
           });
           Object.keys(r.por).forEach(function (dk) {
@@ -9386,7 +9415,7 @@
                       esc(i.c) +
                       (atOf(i) ? " · " + when(atOf(i)).split(" ").pop() : "") +
                       '</small></span><span class="r"><b>' +
-                      brl(i.v) +
+                      (i.t === "inc" ? brl(0 - i.v) : brl(i.v)) +
                       "</b></span></li>"
                     );
                   })
