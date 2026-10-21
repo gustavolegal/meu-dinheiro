@@ -5449,7 +5449,10 @@
                   (Number(g.target) || 0) - (Number(g.saved) || 0),
                 );
                 if (g.completed || rem <= 0) return a;
-                var mo = Number(g.monthly) || 0;
+                var mo =
+                  g.planoCiclo && g.planoCiclo.k === k
+                    ? Number(g.planoCiclo.v) || 0
+                    : Number(g.monthly) || 0;
                 return a + (mo > 0 ? Math.min(mo, rem) : 0);
               }, 0) +
               (S.invests || []).reduce(function (a, x) {
@@ -6358,12 +6361,20 @@
                       pct = Math.min((x.saved / x.target) * 100, 100),
                       completed = Boolean(x.completed || rem <= 0),
                       contrib = curMeta[String(x.id)] || 0,
+                      /* plano deste ciclo: a meta pode guardar um valor só
+                         neste ciclo (ex: 400 em vez de 500) sem mexer no
+                         "por mês" dos próximos */
+                      kk = key(cur),
+                      plano =
+                        x.planoCiclo && x.planoCiclo.k === kk
+                          ? Number(x.planoCiclo.v) || 0
+                          : Number(x.monthly) || 0,
                       /* sem plano mensal (cofrinho de sobra, ex: mercado
                          livre) não tem "No plano atual": n fica 0 */
                       n =
-                        completed || !(x.monthly > 0)
+                        completed || !(plano > 0)
                           ? 0
-                          : Math.ceil(rem / x.monthly),
+                          : Math.ceil(rem / plano),
                       eta = new Date();
                     eta.setMonth(eta.getMonth() + n);
                     return (
@@ -6386,11 +6397,13 @@
                       "</b> de " +
                       brl(x.target) +
                       '</span><span class="sub">' +
-                      (x.monthly > 0
-                        ? "Plano: " + brl(x.monthly) + "/mês"
+                      (plano > 0
+                        ? x.planoCiclo && x.planoCiclo.k === kk
+                          ? "Plano deste ciclo: " + brl(plano)
+                          : "Plano: " + brl(plano) + "/mês"
                         : "") +
                       (x.rend > 0 && !completed && x.saved > 0
-                        ? (x.monthly > 0 ? " · " : "") +
+                        ? (plano > 0 ? " · " : "") +
                           "rende +" +
                           brl((x.saved * x.rend) / 1200) +
                           "/mês (" +
@@ -6470,7 +6483,7 @@
                       (completed
                         ? '<span class="goal-status">Objetivo atingido</span>'
                         : '<label class="goal-contribution"><span>Guardar neste ciclo</span><span class="goal-contribution-controls"><input class="gv" type="number" autocomplete="off" min="0.01" step="0.01" value="' +
-                          (x.monthly > 0 ? Math.min(x.monthly, rem) : "") +
+                          (plano > 0 ? Math.min(plano, rem) : "") +
                           '" aria-label="Valor a guardar para ' +
                           esc(x.name) +
                           '"><button class="p save" data-g="add" data-id="' +
@@ -6493,7 +6506,9 @@
                           x.id +
                           '">Tirar do porquinho</button>'
                         : "") +
-                      '<button data-g="edit" data-id="' +
+                      '<button data-g="plano" data-id="' +
+                      x.id +
+                      '">Plano deste ciclo</button><button data-g="edit" data-id="' +
                       x.id +
                       '">Editar valores</button><button class="remove" data-g="del" data-id="' +
                       x.id +
@@ -7714,6 +7729,19 @@
             S.goals = S.goals.filter(function (x) {
               return x !== g;
             });
+          } else if (b.dataset.g === "plano") {
+            /* plano só deste ciclo: não mexe no "por mês" permanente */
+            var kk = key(cur),
+              efetivo =
+                g.planoCiclo && g.planoCiclo.k === kk
+                  ? Number(g.planoCiclo.v) || 0
+                  : Number(g.monthly) || 0,
+              resp = prompt("Quanto guardar neste ciclo (R$):", efetivo);
+            if (resp === null) return;
+            var nv = num(resp);
+            if (String(resp).trim() === "" || nv === (Number(g.monthly) || 0))
+              delete g.planoCiclo;
+            else g.planoCiclo = { k: kk, v: nv > 0 ? nv : 0 };
           } else {
             var t = num(prompt("Valor total da meta (R$):", g.target)),
               mo = num(
