@@ -5645,7 +5645,32 @@
             isNow = t0 >= st0 && t0 < nx;
           var daysLeft = Math.round((nx - (isNow ? t0 : st0)) / 864e5);
           var pendInc = incPending(m);
+          /* Tudo o que é seu hoje: caixa do ciclo + o que o cofrinho já
+             rendeu + metas (com os rendimentos dentro) + investimentos. */
+          var invTotal = 0;
+          (S.invests || []).forEach(function (x) {
+            var v = ivVal(x);
+            invTotal += v == null ? Number(x.invested) || 0 : v;
+          });
+          var metasTotal = (S.goals || []).reduce(function (a, g) {
+              return a + (Number(g.saved) || 0);
+            }, 0),
+            cofRend = r2(Number(S.cof && S.cof.rendAcum) || 0),
+            totalDinheiro = r2(realLeft + cofRend + metasTotal + invTotal);
           var st =
+            '<div><span>Seu dinheiro hoje<br><small>caixa ' +
+            brl(realLeft) +
+            " + rendido " +
+            brl(cofRend) +
+            " + metas " +
+            brl(metasTotal) +
+            " + invest " +
+            brl(invTotal) +
+            '</small></span><b class="' +
+            (totalDinheiro >= 0 ? "pos" : "neg") +
+            '">' +
+            brl(totalDinheiro) +
+            "</b></div>" +
             "<div><span>Renda do ciclo</span><b>" +
             brl(ic) +
             "</b></div>" +
@@ -6354,7 +6379,9 @@
             ult = t;
             t += 86400000;
           }
-          var snap = Number(c.saldoDia) || 0;
+          /* O que rende é o saldo da conta: o dinheiro do ciclo + o que já
+             rendeu (o rendimento cai na conta e passa a render junto). */
+          var snap = (Number(c.saldoDia) || 0) + (Number(c.rendAcum) || 0);
           /* Só rende o que está dentro do cofrinho do ML (c.ml). Sem esse
              valor, supõe que o caixa inteiro está lá. */
           if (Number(c.ml) > 0) snap = Math.min(Number(c.ml), snap);
@@ -9021,25 +9048,17 @@
             });
           });
           /* O que entrou no mesmo dia abate o gasto do dia: o calendário
-             mostra o que saiu do bolso. Dia sem gasto não fica negativo —
-             só-entrou não é gasto. */
+             mostra o que saiu (ou entrou) do bolso. Dia só com entrada fica
+             de fora — sem gasto lançado não há o que abater. */
           Object.keys(incP).forEach(function (dk) {
             var g = r.por[dk];
-            if (!g || g.v <= 0) return;
-            var falta = g.v;
+            if (!g) return;
             incP[dk].forEach(function (i) {
-              if (falta <= 0) return;
-              var abate = Math.min(i.v, falta);
-              falta = r2(falta - abate);
-              g.v = r2(g.v - abate);
-              r.total = r2(r.total - abate);
+              g.v = r2(g.v - i.v);
+              r.total = r2(r.total - i.v);
               var mk = dk.slice(0, 7);
-              r.porMes[mk] = r2((r.porMes[mk] || 0) - abate);
-              g.itens.push(
-                abate === i.v
-                  ? i
-                  : { t: "inc", n: i.n, c: i.c, v: abate, at: i.at, id: i.id }
-              );
+              r.porMes[mk] = r2((r.porMes[mk] || 0) - i.v);
+              g.itens.push(i);
             });
           });
           Object.keys(r.por).forEach(function (dk) {
@@ -9285,7 +9304,7 @@
             }
             html +=
               '<button type="button" class="cal-day' +
-              (v > 0 ? " has" : "") +
+              (g ? " has" : "") +
               (over ? " is-over" : "") +
               (k === hoje ? " is-today" : "") +
               (sel ? " is-sel" : "") +
@@ -9296,9 +9315,10 @@
               '" aria-label="' +
               calNome(d, "longo") +
               ": " +
-              (v > 0
-                ? brl(v) +
-                  " em gastos" +
+              (g
+                ? (v < 0
+                    ? "entrou " + brl(0 - v) + " a mais"
+                    : brl(v) + " em gastos") +
                   (over
                     ? fds && cotaFds > 0
                       ? ", acima do limite do fim de semana"
@@ -9307,7 +9327,7 @@
                 : "nada lançado") +
               '">' +
               anel +
-              (v > 0
+              (g
                 ? '<span class="cal-v">' +
                   brl(v).replace(/,00$/, "") +
                   "</span>"
