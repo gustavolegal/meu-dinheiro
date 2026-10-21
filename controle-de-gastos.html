@@ -5747,10 +5747,10 @@
             brl(cum) +
             "</b></div>";
           st +=
-            '<div><span>Em caixa agora (renda − o que já saiu)</span><b class="' +
-            (realLeft >= 0 ? "pos" : "neg") +
+            '<div><span>Em caixa agora (renda + rendido − o que já saiu)</span><b class="' +
+            (realLeft + cofRend >= 0 ? "pos" : "neg") +
             '">' +
-            brl(realLeft) +
+            brl(r2(realLeft + cofRend)) +
             "</b></div>";
           if (paidFix + mt + dv > 0)
             st +=
@@ -5761,13 +5761,13 @@
           if (real)
             real.innerHTML =
               '<div class="flow"><div class="flow-card cash"><small>Em caixa agora</small><b' +
-              (realLeft < 0 ? ' class="neg"' : "") +
+              (realLeft + cofRend < 0 ? ' class="neg"' : "") +
               ">" +
-              brl(realLeft) +
+              brl(r2(realLeft + cofRend)) +
               "</b><em>" +
               (startBal
-                ? brl(startBal) + " do ciclo anterior + renda − o que já saiu"
-                : "renda − o que já saiu") +
+                ? brl(startBal) + " do ciclo anterior + renda + rendido − o que já saiu"
+                : "renda + rendido − o que já saiu") +
               "</em></div>" +
               (metaDue > 0
                 ? '<span class="flow-op" aria-hidden="true">−</span>' +
