@@ -99,7 +99,6 @@
           0 6px 20px rgba(16, 16, 20, 0.05);
         --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
           sans-serif;
-        --mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
         color-scheme: light;
       }
       /* :where() mantém a especificidade em (0,1,0) pra que os temas
@@ -208,11 +207,7 @@
       /* ---- tokens derivados ---- */
       :root {
         --primary-soft: color-mix(in oklab, var(--primary) 12%, var(--bg));
-        --primary-line: color-mix(in oklab, var(--primary) 35%, var(--line));
-        --fix-soft: color-mix(in oklab, var(--fix) 14%, var(--bg));
-        --var-soft: color-mix(in oklab, var(--var) 14%, var(--bg));
         --ok-soft: color-mix(in oklab, var(--ok) 14%, var(--bg));
-        --bad-soft: color-mix(in oklab, var(--bad) 14%, var(--bg));
         /* Frutiger Aero: cole aqui uma imagem real de fundo (ex.:
            --scene-img: url("aero.jpg"); ou uma URL https). Em "none" fica
            a cena desenhada. */
@@ -1352,25 +1347,6 @@
           display: none;
         }
       }
-      .stat-row {
-        display: flex;
-        gap: 18px;
-        flex-wrap: wrap;
-        margin-top: 14px;
-      }
-      .stat-row div {
-        min-width: 0;
-      }
-      .stat-row span {
-        display: block;
-        color: var(--mut);
-        font-size: 0.75rem;
-      }
-      .stat-row b {
-        font-size: 1.05rem;
-        font-variant-numeric: tabular-nums;
-      }
-
       /* ---- renda ---- */
       .income-grid {
         display: grid;
@@ -4699,9 +4675,7 @@
            aqui — ou vem do SV_PADRAO que o build do APK embute. */
         var SVK = KEY + "-sv",
           SV = "";
-        try {
-          SV = localStorage.getItem(SVK) || window.SV_PADRAO || "";
-        } catch (e) {}
+        SV = lsGet(SVK, "") || window.SV_PADRAO || "";
         SV = String(SV || "").replace(/\/+$/, "");
         function api() {
           return SV + "/api/dados";
@@ -4712,10 +4686,8 @@
           return !!SV || location.protocol !== "file:";
         }
         cur = new Date(cur.getFullYear(), cur.getMonth(), 1);
-        try {
-          var raw = localStorage.getItem(KEY);
-          if (raw) S = JSON.parse(raw) || { months: {} };
-        } catch (e) {}
+        var raw = lsJson(KEY, null);
+        if (raw) S = raw;
         if (!S.months) S.months = {};
         if (!S.goals) S.goals = [];
         if (!S.invests) S.invests = [];
@@ -4821,10 +4793,7 @@
           return S.payDay || 10;
         }
         function restoreCur() {
-          var c = null;
-          try {
-            c = localStorage.getItem(KEY + "-cyc");
-          } catch (e) {}
+          var c = lsGet(KEY + "-cyc", "");
           if (c && /^\d{4}-\d{2}$/.test(c)) {
             var q = c.split("-");
             cur = new Date(+q[0], +q[1] - 1, 1);
@@ -4887,10 +4856,8 @@
           /* cópia do último estado que os dois lados tinham igual: é a
              referência pra saber o que cada lado mudou (e o que foi apagado) */
           base = null;
-        try {
-          ultSinc = Number(localStorage.getItem(KEY + "-sinc") || 0) || 0;
-          base = JSON.parse(localStorage.getItem(KEY + "-base") || "null");
-        } catch (e) {}
+        ultSinc = Number(lsGet(KEY + "-sinc", 0)) || 0;
+        base = lsJson(KEY + "-base", null);
         /* Tem lançamento de verdade? Um estado vazio (aparelho novo sem dados)
            não pode ganhar do banco só porque tem savedAt mais novo — era assim
            que uma aba aberta sem servidor apagava tudo. */
@@ -4906,9 +4873,7 @@
         }
         function marcaSinc(v) {
           ultSinc = Number(v) || 0;
-          try {
-            localStorage.setItem(KEY + "-sinc", String(ultSinc));
-          } catch (e) {}
+          lsSet(KEY + "-sinc", String(ultSinc));
         }
         /* Guarda o estado que acabou de ir pro servidor (ou de vir dele): é com
            ele que a próxima junção descobre o que mudou de cada lado. Fica uma
@@ -4918,20 +4883,12 @@
         function marcaBase(o) {
           if (!o) {
             base = null;
-            try {
-              localStorage.removeItem(KEY + "-base");
-            } catch (e) {}
+            lsSet(KEY + "-base", null);
             return;
           }
           var txt = JSON.stringify(o);
-          try {
-            localStorage.setItem(KEY + "-base", txt);
-          } catch (e) {}
-          try {
-            base = JSON.parse(txt);
-          } catch (e) {
-            base = null;
-          }
+          lsSet(KEY + "-base", txt);
+          base = JSON.parse(txt);
         }
         /* Troca o estado da memória pelo que veio do banco. */
         function carrega(o) {
@@ -4953,9 +4910,7 @@
           e.classList.add("sync-in");
         }
         function local() {
-          try {
-            localStorage.setItem(KEY, JSON.stringify(ser()));
-          } catch (e) {}
+          lsSet(KEY, JSON.stringify(ser()));
         }
         function ser() {
           var o = {},
@@ -5359,6 +5314,30 @@
         function $(id) {
           return document.getElementById(id);
         }
+        /* localStorage pode lançar (modo privado, cota cheia): toda leitura e
+           escrita passa por aqui, sem try/catch repetido em cada canto. */
+        function lsGet(k, d) {
+          try {
+            var v = localStorage.getItem(k);
+            return v == null ? d : v;
+          } catch (e) {
+            return d;
+          }
+        }
+        function lsJson(k, d) {
+          try {
+            var v = localStorage.getItem(k);
+            return v ? JSON.parse(v) : d;
+          } catch (e) {
+            return d;
+          }
+        }
+        function lsSet(k, v) {
+          try {
+            if (v == null) localStorage.removeItem(k);
+            else localStorage.setItem(k, v);
+          } catch (e) {}
+        }
         function esc(s) {
           var d = document.createElement("div");
           d.textContent = s;
@@ -5425,6 +5404,12 @@
               return a + i.v;
             }, 0);
         }
+        /* Sobra do ciclo (sem o plano de metas): usada no histórico, no
+           gráfico e nos ajustes de meta. Antes era a mesma conta copiada em
+           seis lugares. */
+        function sobra(m) {
+          return inc(m) - sum(m, "fixed") - sum(m, "var") - sum(m, "meta") - sum(m, "inv") - sum(m, "div");
+        }
         /* Soma o que está marcado no repasse (contas + parcelas de dívida). */
         function repTot() {
           var t = 0;
@@ -5441,9 +5426,7 @@
           rendeMetas(); /* credita o rendimento do porquinho antes de desenhar */
           var m = month(),
             k = key(cur);
-          try {
-            localStorage.setItem(KEY + "-cyc", k);
-          } catch (e) {}
+          lsSet(KEY + "-cyc", k);
           var label = rng(cur);
           $("mlabel").textContent = label;
           $("paylabel").textContent =
@@ -5729,14 +5712,7 @@
             .sort()
             .forEach(function (x) {
               if (x <= k && used(x)) {
-                var mm = S.months[x];
-                cum +=
-                  inc(mm) -
-                  sum(mm, "fixed") -
-                  sum(mm, "var") -
-                  sum(mm, "meta") -
-                  sum(mm, "inv") -
-                  sum(mm, "div");
+                cum += sobra(S.months[x]);
               }
             });
           cum = r2(cum);
@@ -6209,7 +6185,10 @@
           tips(m, fx, vr, left, isNow, daysLeft);
           cats(m);
           hist();
-          charts(m, fx, vr, mtForecast, dv, ic, left, isNow, daysLeft);
+          goalWatch();
+          donut(fx, vr, mtForecast, dv, ic, left);
+          spark();
+          cal(left, isNow, daysLeft);
         }
         function dur(n) {
           if (n < 12) return n + (n === 1 ? " mês" : " meses");
@@ -7347,14 +7326,7 @@
           $("hist").innerHTML = ks
             .map(function (k) {
               var m = S.months[k],
-                l = r2(
-                  inc(m) -
-                    sum(m, "fixed") -
-                    sum(m, "var") -
-                    sum(m, "meta") -
-                    sum(m, "inv") -
-                    sum(m, "div"),
-                ),
+                l = r2(sobra(m)),
                 p = k.split("-"),
                 d = new Date(+p[0], +p[1] - 1, 1);
               return (
@@ -7373,10 +7345,7 @@
             })
             .join("");
         }
-        var ultimaCat = "";
-        try {
-          ultimaCat = localStorage.getItem(KEY + "-cat") || "";
-        } catch (e) {}
+        var ultimaCat = lsGet(KEY + "-cat", "");
         document.querySelectorAll("form[data-t] select").forEach(function (s) {
           s.innerHTML = CATS.map(function (c) {
             return "<option>" + c + "</option>";
@@ -7402,9 +7371,7 @@
               auto: false,
             });
             ultimaCat = sel.value;
-            try {
-              localStorage.setItem(KEY + "-cat", ultimaCat);
-            } catch (e2) {}
+            lsSet(KEY + "-cat", ultimaCat);
             save();
             f.reset();
             if (ultimaCat && CATS.indexOf(ultimaCat) > -1) sel.value = ultimaCat;
@@ -7667,13 +7634,7 @@
             if (!(v > 0)) return;
             v = Math.min(v, rem);
             var mm = month(),
-              l =
-                inc(mm) -
-                sum(mm, "fixed") -
-                sum(mm, "var") -
-                sum(mm, "meta") -
-                sum(mm, "inv") -
-                sum(mm, "div");
+              l = sobra(mm);
             if (
               v > l &&
               !confirm(
@@ -7781,13 +7742,7 @@
             if (!(v > 0)) return;
             v = Math.min(v, rem);
             var mm = month(),
-              l =
-                inc(mm) -
-                sum(mm, "fixed") -
-                sum(mm, "var") -
-                sum(mm, "meta") -
-                sum(mm, "inv") -
-                sum(mm, "div");
+              l = sobra(mm);
             if (
               v > l &&
               !confirm(
@@ -7931,13 +7886,7 @@
               v = num(inp ? inp.value : "");
             if (!(v > 0)) return;
             v = Math.round(v * 100) / 100;
-            var l =
-              inc(mm) -
-              sum(mm, "fixed") -
-              sum(mm, "var") -
-              sum(mm, "meta") -
-              sum(mm, "inv") -
-              sum(mm, "div");
+            var l = sobra(mm);
             if (
               v > l &&
               !confirm(
@@ -8244,9 +8193,7 @@
             if (on) b.setAttribute("aria-current", "page");
             else b.removeAttribute("aria-current");
           });
-          try {
-            localStorage.setItem(KEY + "-tab", v);
-          } catch (e) {}
+          lsSet(KEY + "-tab", v);
           try {
             history.replaceState(null, "", "#" + v);
           } catch (e) {}
@@ -8285,13 +8232,7 @@
               });
           };
         });
-        var v0 = "resumo";
-        try {
-          v0 =
-            location.hash.replace(/^#/, "") ||
-            localStorage.getItem(KEY + "-tab") ||
-            "resumo";
-        } catch (e) {}
+        var v0 = location.hash.replace(/^#/, "") || lsGet(KEY + "-tab", "") || "resumo";
         if (v0 === "temas") v0 = "mais"; // aba antiga: agora vive dentro de "Mais"
         if (["resumo", "renda", "gastos", "metas", "cofrinho", "mais"].indexOf(v0) < 0)
           v0 = "resumo";
@@ -8664,16 +8605,12 @@
             var w = GLASS_WALLS[i];
             st.setProperty("--glass-img-l", 'url("' + w.l + '")');
             st.setProperty("--glass-img-d", 'url("' + w.d + '")');
-            try {
-              localStorage.setItem(KEY + "-wall-l", w.l);
-              localStorage.setItem(KEY + "-wall-d", w.d);
-            } catch (e) {}
+            lsSet(KEY + "-wall-l", w.l);
+            lsSet(KEY + "-wall-d", w.d);
             applyImagePalette(resolveMode() === "dark" ? w.d : w.l);
           } else {
-            try {
-              var u = resolveMode() === "dark" ? localStorage.getItem(KEY + "-wall-d") : localStorage.getItem(KEY + "-wall-l");
-              if (u) applyImagePalette(u);
-            } catch (e) {}
+            var u = lsGet(KEY + (resolveMode() === "dark" ? "-wall-d" : "-wall-l"), "");
+            if (u) applyImagePalette(u);
           }
         }
         function rotateScene() {
@@ -8693,18 +8630,10 @@
         var CHECK =
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
         function themeId() {
-          try {
-            return localStorage.getItem(KEY + "-theme") || "neutro";
-          } catch (e) {
-            return "neutro";
-          }
+          return lsGet(KEY + "-theme", "") || "neutro";
         }
         function modePref() {
-          try {
-            return localStorage.getItem(KEY + "-mode") || "auto";
-          } catch (e) {
-            return "auto";
-          }
+          return lsGet(KEY + "-mode", "") || "auto";
         }
         function resolveMode() {
           var p = modePref();
@@ -8876,15 +8805,7 @@
             return;
           }
           var vals = keys.map(function (k) {
-            var mm = S.months[k];
-            return (
-              inc(mm) -
-              sum(mm, "fixed") -
-              sum(mm, "var") -
-              sum(mm, "meta") -
-              sum(mm, "inv") -
-              sum(mm, "div")
-            );
+            return sobra(S.months[k]);
           });
           var w = 680,
             h = 190,
@@ -9336,81 +9257,75 @@
           }
           return html;
         }
-        function calMeses(r) {
-          var mo = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
-            y = calM.getFullYear(),
-            vals = [],
-            html = '<div class="cal-meses">';
-          for (var i = 0; i < 12; i++)
-            vals.push(r.porMes[y + "-" + (i < 9 ? "0" : "") + (i + 1)] || 0);
-          var mx = Math.max.apply(null, vals);
-          for (i = 0; i < 12; i++) {
-            var v = vals[i],
-              mk = y + "-" + (i < 9 ? "0" : "") + (i + 1),
-              atual = mk === calKey(new Date()).slice(0, 7),
-              pc = v > 0 && mx > 0 ? Math.max(8, Math.round((v / mx) * 100)) : 0;
-            html +=
-              '<button type="button" class="cal-mes' +
-              (v > 0 ? "" : " vazio") +
-              (atual ? " is-atual" : "") +
-              '" data-mes="' +
-              mk +
-              '"' +
-              (atual ? ' aria-current="date"' : "") +
-              ' aria-label="' +
-              mo[i] +
-              " de " +
-              y +
-              ": " +
-              (v > 0 ? brl(v) + " em gastos" : "nada lançado") +
-              '"><span class="cal-mes-n">' +
-              mo[i] +
-              '</span><span class="cal-mes-v">' +
-              (v > 0 ? brl(v).replace(/,00$/, "") : "—") +
-              '</span><i class="cal-mes-bar" aria-hidden="true" style="width:' +
-              pc +
-              '%"></i></button>';
-          }
-          return html + "</div>";
-        }
-        /* A vista de cima: uma barra por ano. Clicar num ano abre os 12
-           meses dele. */
-        function calAnos(r) {
-          var porAno = {},
-            atual = String(new Date().getFullYear()),
-            mx = 0,
+        /* As duas vistas de cima (mês e ano) são a mesma grade de botões:
+           barra proporcional + número; só muda a origem e o data- atributo. */
+        function calGrade(itens, attr) {
+          var mx = Math.max.apply(
+              null,
+              itens.map(function (i) {
+                return i.v;
+              }).concat([0]),
+            ),
             html = "";
-          Object.keys(r.porMes).forEach(function (k) {
-            porAno[k.slice(0, 4)] = (porAno[k.slice(0, 4)] || 0) + r.porMes[k];
-          });
-          var anos = calAnosLista();
-          anos.forEach(function (y) {
-            if ((porAno[y] || 0) > mx) mx = porAno[y];
-          });
-          anos.forEach(function (y) {
-            var v = porAno[y] || 0,
-              pc = v > 0 && mx > 0 ? Math.max(8, Math.round((v / mx) * 100)) : 0;
+          itens.forEach(function (it) {
+            var pc = it.v > 0 && mx > 0 ? Math.max(8, Math.round((it.v / mx) * 100)) : 0;
             html +=
               '<button type="button" class="cal-mes' +
-              (v > 0 ? "" : " vazio") +
-              (y === atual ? " is-atual" : "") +
-              '" data-ano="' +
-              y +
+              (it.v > 0 ? "" : " vazio") +
+              (it.atual ? " is-atual" : "") +
+              '" data-' +
+              attr +
+              '="' +
+              it.k +
               '"' +
-              (y === atual ? ' aria-current="date"' : "") +
+              (it.atual ? ' aria-current="date"' : "") +
               ' aria-label="' +
-              y +
+              it.lab +
               ": " +
-              (v > 0 ? brl(v) + " em gastos" : "nada lançado") +
+              (it.v > 0 ? brl(it.v) + " em gastos" : "nada lançado") +
               '"><span class="cal-mes-n">' +
-              y +
+              it.n +
               '</span><span class="cal-mes-v">' +
-              (v > 0 ? brl(v).replace(/,00$/, "") : "—") +
+              (it.v > 0 ? brl(it.v).replace(/,00$/, "") : "—") +
               '</span><i class="cal-mes-bar" aria-hidden="true" style="width:' +
               pc +
               '%"></i></button>';
           });
           return '<div class="cal-meses">' + html + "</div>";
+        }
+        function calMeses(r) {
+          var mo = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"],
+            y = calM.getFullYear(),
+            hoje = calKey(new Date()).slice(0, 7);
+          return calGrade(
+            mo.map(function (nome, i) {
+              var mk = y + "-" + (i < 9 ? "0" : "") + (i + 1);
+              return {
+                k: mk,
+                n: nome,
+                v: r.porMes[mk] || 0,
+                atual: mk === hoje,
+                lab: nome + " de " + y,
+              };
+            }),
+            "mes",
+          );
+        }
+        /* A vista de cima: uma barra por ano. Clicar num ano abre os 12
+           meses dele. */
+        function calAnos(r) {
+          var porAno = {},
+            hoje = String(new Date().getFullYear());
+          Object.keys(r.porMes).forEach(function (k) {
+            var y = k.slice(0, 4);
+            porAno[y] = (porAno[y] || 0) + r.porMes[k];
+          });
+          return calGrade(
+            calAnosLista().map(function (y) {
+              return { k: y, n: y, v: porAno[y] || 0, atual: String(y) === hoje, lab: y };
+            }),
+            "ano",
+          );
         }
         function calDet() {
           var el = $("cal-detail");
@@ -9525,12 +9440,6 @@
           b.setAttribute("aria-pressed", "true");
           calDet();
         });
-        function charts(m, fx, vr, mt, dv, ic, left, isNow, daysLeft) {
-          goalWatch();
-          donut(fx, vr, mt, dv, ic, left);
-          spark();
-          cal(left, isNow, daysLeft);
-        }
 
 /* ===================== ambiente vivo ===================== */
         function initBubbles() {
@@ -9698,11 +9607,7 @@
           _grid.addEventListener("click", function (e) {
             var b = e.target.closest("[data-theme-id]");
             if (!b) return;
-            try {
-              if (b.dataset.themeId === "neutro")
-                localStorage.removeItem(KEY + "-theme");
-              else localStorage.setItem(KEY + "-theme", b.dataset.themeId);
-            } catch (err) {}
+            lsSet(KEY + "-theme", b.dataset.themeId === "neutro" ? null : b.dataset.themeId);
             switchTheme(e.clientX, e.clientY);
           });
         var _seg = $("mode-seg");
@@ -9710,10 +9615,7 @@
           _seg.addEventListener("click", function (e) {
             var b = e.target.closest("[data-mode]");
             if (!b) return;
-            try {
-              if (b.dataset.mode === "auto") localStorage.removeItem(KEY + "-mode");
-              else localStorage.setItem(KEY + "-mode", b.dataset.mode);
-            } catch (err) {}
+            lsSet(KEY + "-mode", b.dataset.mode === "auto" ? null : b.dataset.mode);
             switchTheme(e.clientX, e.clientY);
           });
         initBubbles();
@@ -9742,10 +9644,7 @@
             var v = inp.value.trim();
             if (v && !/^https?:\/\//i.test(v)) v = "http://" + v;
             v = v.replace(/\/+$/, "");
-            try {
-              if (v) localStorage.setItem(SVK, v);
-              else localStorage.removeItem(SVK);
-            } catch (e) {}
+            lsSet(SVK, v || null);
             SV = v;
             diz();
             sincroniza();

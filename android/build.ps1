@@ -28,7 +28,7 @@ $ks = "debug.keystore"
 $apk = "meu-dinheiro.apk"
 $build = "build"
 
-foreach ($f in @($aapt2, $d8, $zipalign, $apksigner, $androidjar)) {
+foreach ($f in @($aapt2, $d8, $zipalign, $apksigner, $androidjar, (Join-Path $aqui $ks))) {
   if (-not (Test-Path $f)) { throw "faltando $f (instale com sdkmanager: platforms;android-34 build-tools;34.0.0)" }
 }
 
@@ -69,13 +69,6 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "zipalign falhou" }
 
   Write-Host "6/6 assinatura"
-  if (-not (Test-Path $ks)) {
-    # chave de debug do projeto (não é segredo: só serve pra instalar por aqui)
-    & keytool -genkeypair -keystore $ks -storepass android -keypass android `
-      -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10950 `
-      -dname "CN=Meu Dinheiro, O=local, C=BR"
-    if ($LASTEXITCODE -ne 0) { throw "keytool falhou" }
-  }
   & $apksigner sign --ks $ks --ks-pass pass:android --key-pass pass:android `
     --ks-key-alias androiddebugkey --out $apk "build\aligned.apk"
   if ($LASTEXITCODE -ne 0) { throw "apksigner falhou" }
