@@ -1803,36 +1803,6 @@
       .goal-create-form button {
         min-height: 41px;
       }
-      .goal-toolbar {
-        display: grid;
-        grid-template-columns: minmax(150px, 1fr) auto;
-        gap: 10px;
-        align-items: center;
-        margin: 14px 0 10px;
-      }
-      .goal-search input {
-        width: 100%;
-      }
-      .goal-filters {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        padding: 4px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: var(--card-2);
-      }
-      .goal-filters button {
-        padding: 7px 11px;
-        font-size: 0.78rem;
-        border-color: transparent;
-        background: transparent;
-      }
-      .goal-filters button.on {
-        background: var(--card);
-        color: var(--ink);
-        box-shadow: var(--shadow);
-      }
       .goal-summary {
         display: flex;
         justify-content: space-between;
@@ -2507,9 +2477,6 @@
         .expense-heading .tag {
           margin-top: 10px;
         }
-        .goal-toolbar {
-          grid-template-columns: 1fr;
-        }
         .goal-grid {
           grid-template-columns: 1fr;
         }
@@ -2928,7 +2895,6 @@
       [data-theme="glass"] #tabs,
       [data-theme="glass"] .nav,
       [data-theme="glass"] .seg,
-      [data-theme="glass"] .goal-filters,
       [data-theme="glass"] .income-control,
       [data-theme="glass"] .expense-form,
       [data-theme="glass"] .goal,
@@ -2942,8 +2908,7 @@
       [data-theme="glass"] .expense-form,
       [data-theme="glass"] .goal,
       [data-theme="glass"] .nav,
-      [data-theme="glass"] .seg,
-      [data-theme="glass"] .goal-filters {
+      [data-theme="glass"] .seg {
         background:
           radial-gradient(300px circle at var(--mx, 50%) var(--my, -12%), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 62%),
           linear-gradient(
@@ -2963,8 +2928,7 @@
       [data-theme="glass"][data-mode="dark"] .expense-form,
       [data-theme="glass"][data-mode="dark"] .goal,
       [data-theme="glass"][data-mode="dark"] .nav,
-      [data-theme="glass"][data-mode="dark"] .seg,
-      [data-theme="glass"][data-mode="dark"] .goal-filters {
+      [data-theme="glass"][data-mode="dark"] .seg {
         background:
           radial-gradient(300px circle at var(--mx, 50%) var(--my, -12%), rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%),
           linear-gradient(
@@ -3210,8 +3174,7 @@
           inset 0 -14px 30px rgba(8, 44, 80, 0.4);
       }
       [data-theme="aero"] .nav,
-      [data-theme="aero"] .seg,
-      [data-theme="aero"] .goal-filters {
+      [data-theme="aero"] .seg {
         background: linear-gradient(
           180deg,
           rgba(255, 255, 255, 0.88),
@@ -3223,8 +3186,7 @@
           0 4px 14px rgba(0, 90, 170, 0.16);
       }
       [data-theme="aero"][data-mode="dark"] .nav,
-      [data-theme="aero"][data-mode="dark"] .seg,
-      [data-theme="aero"][data-mode="dark"] .goal-filters {
+      [data-theme="aero"][data-mode="dark"] .seg {
         background: linear-gradient(
           180deg,
           rgba(26, 48, 74, 0.88),
@@ -3515,8 +3477,7 @@
           0 0 26px rgba(0, 190, 255, 0.05);
       }
       [data-theme="aeromoon"] .nav,
-      [data-theme="aeromoon"] .seg,
-      [data-theme="aeromoon"] .goal-filters {
+      [data-theme="aeromoon"] .seg {
         background: linear-gradient(
           180deg,
           rgba(26, 48, 74, 0.88),
@@ -3712,8 +3673,7 @@
       }
       [data-theme="xp"] .top,
       [data-theme="xp"] .nav,
-      [data-theme="xp"] .seg,
-      [data-theme="xp"] .goal-filters {
+      [data-theme="xp"] .seg {
         background: linear-gradient(180deg, #f4f8ff, #d9e6fb);
         border-color: rgba(120, 160, 230, 0.5);
         box-shadow:
@@ -3722,8 +3682,7 @@
       }
       [data-theme="xp"][data-mode="dark"] .top,
       [data-theme="xp"][data-mode="dark"] .nav,
-      [data-theme="xp"][data-mode="dark"] .seg,
-      [data-theme="xp"][data-mode="dark"] .goal-filters {
+      [data-theme="xp"][data-mode="dark"] .seg {
         background: linear-gradient(180deg, rgba(28, 52, 92, 0.9), rgba(14, 30, 54, 0.7));
         border-color: rgba(120, 170, 255, 0.28);
         box-shadow:
@@ -3857,8 +3816,7 @@
       }
       [data-theme="y2k"] .top,
       [data-theme="y2k"] .nav,
-      [data-theme="y2k"] .seg,
-      [data-theme="y2k"] .goal-filters {
+      [data-theme="y2k"] .seg {
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(205, 208, 222, 0.72));
         border-color: rgba(255, 255, 255, 0.85);
         box-shadow:
@@ -3867,8 +3825,7 @@
       }
       [data-theme="y2k"][data-mode="dark"] .top,
       [data-theme="y2k"][data-mode="dark"] .nav,
-      [data-theme="y2k"][data-mode="dark"] .seg,
-      [data-theme="y2k"][data-mode="dark"] .goal-filters {
+      [data-theme="y2k"][data-mode="dark"] .seg {
         background: linear-gradient(180deg, rgba(58, 36, 88, 0.85), rgba(30, 16, 48, 0.68));
         border-color: rgba(255, 120, 210, 0.28);
         box-shadow:
@@ -3966,8 +3923,7 @@
       }
       [data-theme="synth"] .top,
       [data-theme="synth"] .nav,
-      [data-theme="synth"] .seg,
-      [data-theme="synth"] .goal-filters {
+      [data-theme="synth"] .seg {
         background: linear-gradient(180deg, rgba(44, 26, 92, 0.8), rgba(20, 10, 46, 0.66));
         border-color: rgba(240, 120, 255, 0.3);
         box-shadow: inset 0 1px 0 rgba(255, 180, 255, 0.2);
@@ -4086,8 +4042,7 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.06);
       }
       [data-theme="oled"] .nav,
-      [data-theme="oled"] .seg,
-      [data-theme="oled"] .goal-filters {
+      [data-theme="oled"] .seg {
         background: #0c0f13;
         border-color: rgba(255, 255, 255, 0.08);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -4620,7 +4575,7 @@
         <div id="history-goals"></div>
       </section>
 
-      <section class="card" data-tab="mais" id="sv-card">
+      <section class="card" data-tab="mais">
         <h2>Servidor (celular × PC)</h2>
         <p class="sub">
           Onde os dados ficam guardados: o endereço do PC na sua rede. No APK do
@@ -4665,8 +4620,6 @@
         var KEY = "meu-dinheiro-v1",
           S = { months: {}, goals: [], tetos: {} },
           cur = new Date(),
-          goalFilter = "all",
-          goalSearch = "",
           goalLeft = 0,
           barPainted = false;
         /* Onde ficam os dados. No site aberto pelo próprio PC é o endereço de
@@ -5215,6 +5168,32 @@
             currency: "BRL",
           });
         }
+        /* Uma linha do painel de números do Resumo: rótulo (com a conta
+           embaixo, quando tem) e valor, verde/vermelho se precisar. */
+        function stat(label, valor, cls, sub) {
+          return (
+            "<div><span>" +
+            label +
+            (sub ? "<br><small>" + sub + "</small>" : "") +
+            "</span><b" +
+            (cls ? ' class="' + cls + '"' : "") +
+            ">" +
+            valor +
+            "</b></div>"
+          );
+        }
+        /* Linha de item já pago/guardado: nome, valor e o ✕ de desfazer. */
+        function linhaSaida(i) {
+          return (
+            "<li><span>" +
+            esc(i.n) +
+            '</span><span class="r"><b>' +
+            brl(i.v) +
+            '</b><button class="x" data-id="' +
+            i.id +
+            '" aria-label="Desfazer">✕</button></span></li>'
+          );
+        }
         /* O id do item é Date.now() na criação: o que foi lançado antes do campo
            `at` existir ainda tem a data guardada no id. Vale só pra compra
            (var) e entrada (inc) — conta fixa, meta e dívida não são "quando eu
@@ -5500,7 +5479,6 @@
               '<i class="bar-segment" tabindex="0" role="img" aria-label="' +
               label + ": " + brl(value) +
               '" data-label="' + label +
-              '" data-value="' + brl(value) +
               '" data-v="' + value +
               '" data-tooltip="' + tooltip(label, value) +
               '" style="width:' + Math.max(0, (value / base) * 100) +
@@ -5641,72 +5619,53 @@
             cofRend = r2(Number(S.cof && S.cof.rendAcum) || 0),
             totalDinheiro = r2(realLeft + cofRend + metasTotal + invTotal);
           var st =
-            '<div><span>Seu dinheiro hoje<br><small>caixa ' +
-            brl(realLeft) +
-            " + rendido " +
-            brl(cofRend) +
-            " + metas " +
-            brl(metasTotal) +
-            " + invest " +
-            brl(invTotal) +
-            '</small></span><b class="' +
-            (totalDinheiro >= 0 ? "pos" : "neg") +
-            '">' +
-            brl(totalDinheiro) +
-            "</b></div>" +
-            "<div><span>Renda do ciclo</span><b>" +
-            brl(ic) +
-            "</b></div>" +
-            (pendInc > 0
-              ? "<div><span>A receber (a confirmar)</span><b>" +
-                brl(pendInc) +
-                "</b></div>"
-              : "") +
-            "<div><span>Gastos (fixos + variáveis)</span><b>" +
-            brl(fx + vr) +
-            "</b></div><div><span>Guardado (metas + investimentos)</span><b>" +
-            brl(mt) +
-            "</b></div>";
+            stat(
+              "Seu dinheiro hoje",
+              brl(totalDinheiro),
+              totalDinheiro >= 0 ? "pos" : "neg",
+              "caixa " +
+                brl(realLeft) +
+                " + rendido " +
+                brl(cofRend) +
+                " + metas " +
+                brl(metasTotal) +
+                " + invest " +
+                brl(invTotal),
+            ) +
+            stat("Renda do ciclo", brl(ic)) +
+            (pendInc > 0 ? stat("A receber (a confirmar)", brl(pendInc)) : "") +
+            stat("Gastos (fixos + variáveis)", brl(fx + vr)) +
+            stat("Guardado (metas + investimentos)", brl(mt));
           [
             ["Comissão", "Comissões"],
             ["Hora extra", "Hora extra"],
           ].forEach(function (p) {
             var v = isum(m, p[0]);
-            if (v > 0)
-              st +=
-                "<div><span>" +
-                p[1] +
-                " neste ciclo</span><b>" +
-                brl(v) +
-                "</b></div>";
+            if (v > 0) st += stat(p[1] + " neste ciclo", brl(v));
           });
           var rc = recent(k);
           if (rc.length >= 2)
             st +=
-              "<div><span>Renda média (últimos " +
-              rc.length +
-              " ciclos)</span><b>" +
-              brl(
-                rc.reduce(function (a, b) {
-                  return a + b;
-                }, 0) / rc.length,
-              ) +
-              "</b></div><div><span>Menor renda recente</span><b>" +
-              brl(Math.min.apply(null, rc)) +
-              "</b></div>";
-          if (dv > 0 || S.debts.length)
-            st +=
-              "<div><span>Pago em dívidas</span><b>" + brl(dv) + "</b></div>";
+              stat(
+                "Renda média (últimos " + rc.length + " ciclos)",
+                brl(
+                  rc.reduce(function (a, b) {
+                    return a + b;
+                  }, 0) / rc.length,
+                ),
+              ) + stat("Menor renda recente", brl(Math.min.apply(null, rc)));
+          if (dv > 0 || S.debts.length) st += stat("Pago em dívidas", brl(dv));
           if (isNow)
-            st +=
-              "<div><span>Próximo pagamento</span><b>" +
+            st += stat(
+              "Próximo pagamento",
               nx
                 .toLocaleDateString("pt-BR", { day: "numeric", month: "short" })
                 .replace(/\./g, "") +
-              " (em " +
-              daysLeft +
-              (daysLeft === 1 ? " dia" : " dias") +
-              ")</b></div>";
+                " (em " +
+                daysLeft +
+                (daysLeft === 1 ? " dia" : " dias") +
+                ")",
+            );
           var cum = 0;
           Object.keys(S.months)
             .sort()
@@ -5716,23 +5675,17 @@
               }
             });
           cum = r2(cum);
-          st +=
-            '<div><span>Acumulado até este ciclo</span><b class="' +
-            (cum >= 0 ? "pos" : "neg") +
-            '">' +
-            brl(cum) +
-            "</b></div>";
-          st +=
-            '<div><span>Em caixa agora (renda + rendido − o que já saiu)</span><b class="' +
-            (realLeft + cofRend >= 0 ? "pos" : "neg") +
-            '">' +
-            brl(r2(realLeft + cofRend)) +
-            "</b></div>";
+          st += stat("Acumulado até este ciclo", brl(cum), cum >= 0 ? "pos" : "neg");
+          st += stat(
+            "Em caixa agora (renda + rendido − o que já saiu)",
+            brl(r2(realLeft + cofRend)),
+            realLeft + cofRend >= 0 ? "pos" : "neg",
+          );
           if (paidFix + mt + dv > 0)
-            st +=
-              '<div><span>Já saiu neste ciclo (pago + guardado)</span><b>' +
-              brl(paidFix + mt + dv) +
-              "</b></div>";
+            st += stat(
+              "Já saiu neste ciclo (pago + guardado)",
+              brl(paidFix + mt + dv),
+            );
           var real = $("real");
           if (real)
             real.innerHTML =
@@ -6110,19 +6063,7 @@
           });
           $("gmonth").innerHTML = gi.length
             ? '<div class="sub" style="margin-top:12px">Guardado neste ciclo (meta ou investimento removido)</div><ul>' +
-              gi
-                .map(function (i) {
-                  return (
-                    "<li><span>" +
-                    esc(i.n) +
-                    '</span><span class="r"><b>' +
-                    brl(i.v) +
-                    '</b><button class="x" data-id="' +
-                    i.id +
-                    '" aria-label="Desfazer">✕</button></span></li>'
-                  );
-                })
-                .join("") +
+              gi.map(linhaSaida).join("") +
               "</ul>"
             : "";
           var ii = m.items.filter(function (i) {
@@ -6167,19 +6108,7 @@
           });
           $("dmonth").innerHTML = di.length
             ? '<div class="sub" style="margin-top:12px">Pago neste ciclo (já descontado do salário)</div><ul>' +
-              di
-                .map(function (i) {
-                  return (
-                    "<li><span>" +
-                    esc(i.n) +
-                    '</span><span class="r"><b>' +
-                    brl(i.v) +
-                    '</b><button class="x" data-id="' +
-                    i.id +
-                    '" aria-label="Desfazer">✕</button></span></li>'
-                  );
-                })
-                .join("") +
+              di.map(linhaSaida).join("") +
               "</ul>"
             : "";
           tips(m, fx, vr, left, isNow, daysLeft);
@@ -6241,6 +6170,26 @@
             );
           return t === -48 || t === -47 || t === -2 || t === 60;
         }
+        /* Dias úteis INTEIROS entre a âncora e agora: devolve cada dia (pra
+           lançar 1 rendimento por dia) e a última meia-noite conferida. */
+        function diasUteis(desde, ate) {
+          var bd = new Date(desde),
+            t = new Date(
+              bd.getFullYear(),
+              bd.getMonth(),
+              bd.getDate() + 1,
+            ).getTime(),
+            dias = [],
+            ult = 0;
+          while (t <= ate) {
+            var dia = new Date(t - 86400000);
+            if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia))
+              dias.push(dia);
+            ult = t;
+            t += 86400000;
+          }
+          return { dias: dias, ult: ult };
+        }
         /* Porquinho do Inter/Mercado Pago: o valor guardado rende em DIA ÚTIL
            (juros compostos). Credita os dias úteis INTEIROS desde o último
            crédito e avança o relógio até a última meia-noite conferida — assim
@@ -6271,25 +6220,10 @@
             }
             /* Conta meia-noite a meia-noite: cada dia que termina e é útil
                vale 1/252 dos juros (252 = dias úteis do ano, padrão do CDI). */
-            var bd = new Date(base),
-              t = new Date(
-                bd.getFullYear(),
-                bd.getMonth(),
-                bd.getDate() + 1,
-              ).getTime(),
-              du = 0,
-              ult = 0,
-              dias = [];
-            while (t <= now) {
-              var dia = new Date(t - 86400000);
-              if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) {
-                du++;
-                dias.push(dia);
-              }
-              ult = t;
-              t += 86400000;
-            }
-            if (du > 0) {
+            var janela = diasUteis(base, now),
+              dias = janela.dias,
+              ult = janela.ult;
+            if (dias.length) {
               /* um lançamento por dia útil no histórico da meta */
               var taxaDia = r / 25200,
                 soma = 0;
@@ -6340,31 +6274,16 @@
             local();
             return;
           }
-          var bd = new Date(base),
-            t = new Date(
-              bd.getFullYear(),
-              bd.getMonth(),
-              bd.getDate() + 1,
-            ).getTime(),
-            du = 0,
-            ult = 0,
-            dias = [];
-          while (t <= now) {
-            var dia = new Date(t - 86400000);
-            if (dia.getDay() !== 0 && dia.getDay() !== 6 && !feriado(dia)) {
-              du++;
-              dias.push(dia);
-            }
-            ult = t;
-            t += 86400000;
-          }
+          var janela = diasUteis(base, now),
+            dias = janela.dias,
+            ult = janela.ult;
           /* O que rende é o saldo da conta: o dinheiro do ciclo + o que já
              rendeu (o rendimento cai na conta e passa a render junto). */
           var snap = (Number(c.saldoDia) || 0) + (Number(c.rendAcum) || 0);
           /* Só rende o que está dentro do cofrinho do ML (c.ml). Sem esse
              valor, supõe que o caixa inteiro está lá. */
           if (Number(c.ml) > 0) snap = Math.min(Number(c.ml), snap);
-          if (du > 0 && snap > 0) {
+          if (dias.length && snap > 0) {
             /* um lançamento por dia útil no histórico (o valor exato do
                rendimento é o que aparece no app do Mercado Pago) */
             var taxaDia = Number(c.rend) / 25200,
@@ -6383,7 +6302,7 @@
             c.at = ult;
             S.savedAt = now;
             local();
-          } else if (du > 0) {
+          } else if (dias.length) {
             c.at = ult;
           }
           c.saldoDia = saldo;
@@ -6399,32 +6318,10 @@
             doneCount = S.goals.filter(function (x) {
               return Boolean(x.completed || x.saved >= x.target);
             }).length,
-            activeCount = S.goals.length - doneCount,
-            active = S.goals.filter(function (x) {
-              var completed = Boolean(x.completed || x.saved >= x.target);
-              return (
-                goalFilter === "all" ||
-                (goalFilter === "active" && !completed) ||
-                (goalFilter === "done" && completed)
-              );
-            }),
-            query = goalSearch.trim().toLowerCase();
-          if (query) {
-            active = active.filter(function (x) {
-              return x.name.toLowerCase().indexOf(query) >= 0;
-            });
-          }
+            activeCount = S.goals.length - doneCount;
           el.innerHTML =
             (S.goals.length
-              ? '<div class="goal-toolbar"><div class="goal-search"><input id="goal-search" type="search" autocomplete="off" value="' +
-                esc(goalSearch) +
-                '" placeholder="Buscar meta" aria-label="Buscar meta" /></div><div class="goal-filters" aria-label="Filtrar metas"><button data-goal-filter="all" class="' +
-                (goalFilter === "all" ? "on" : "") +
-                '">Todas</button><button data-goal-filter="active" class="' +
-                (goalFilter === "active" ? "on" : "") +
-                '">Em andamento</button><button data-goal-filter="done" class="' +
-                (goalFilter === "done" ? "on" : "") +
-                '">Concluídas</button></div></div><div class="goal-summary"><span>' +
+              ? '<div class="goal-summary"><span>' +
                 activeCount +
                 " em andamento · " +
                 doneCount +
@@ -6436,9 +6333,9 @@
                 ) +
                 " guardados</span></div>"
               : "") +
-            (active.length
+            (S.goals.length
               ? '<div class="goal-grid">' +
-                active
+                S.goals
                   .map(function (x) {
                     var rem = Math.max(x.target - x.saved, 0),
                       pct = Math.min((x.saved / x.target) * 100, 100),
@@ -6588,9 +6485,7 @@
                   })
                   .join("") +
                 "</div>"
-              : S.goals.length
-                ? '<p class="empty">Nenhuma meta encontrada. Ajuste a busca ou o filtro.</p>'
-                : '<p class="empty">Você ainda não criou metas. Use “Criar meta” para adicionar a primeira.</p>');
+              : '<p class="empty">Você ainda não criou metas. Use “Criar meta” para adicionar a primeira.</p>');
         }
         /* Cotação automática. O aporte guarda o DIA em que entrou, mas pra
            saber quanto ele virou hoje o app precisa do preço daquele dia:
@@ -7027,7 +6922,7 @@
                     " por ciclo), quita em " +
                     dur(Math.ceil(rem / (tot / cnt))) +
                     ".";
-                else if (x.monthly > 0 && x.monthly > 0)
+                else if (x.monthly > 0)
                   txt +=
                     " Pagando " +
                     brl(x.monthly) +
@@ -7692,23 +7587,6 @@
           }
           save();
           render();
-        });
-        $("goals").addEventListener("input", function (e) {
-          if (e.target.id !== "goal-search") return;
-          var cursor = e.target.selectionStart;
-          goalSearch = e.target.value;
-          goals(goalLeft);
-          var next = $("goal-search");
-          if (next) {
-            next.focus();
-            next.setSelectionRange(cursor, cursor);
-          }
-        });
-        $("goals").addEventListener("click", function (e) {
-          var b = e.target.closest("[data-goal-filter]");
-          if (!b) return;
-          goalFilter = b.dataset.goalFilter;
-          goals(goalLeft);
         });
         $("gform").addEventListener("submit", function (e) {
           e.preventDefault();
